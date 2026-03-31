@@ -645,10 +645,28 @@ body {
         font-size: 12px;
         padding: 4px 10px;
         margin-left: 10px;
+        margin-top: 8px;
+        width: 100%;
+        justify-content: center;
     }
     
     .complete-count {
         font-size: 14px;
+    }
+    
+    /* 让nav-center支持flex-wrap，在窄屏时换行 */
+    .nav-center {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .progress-container {
+        flex: 1 1 200px;
+    }
+    
+    .complete-container {
+        flex: 0 0 auto;
+        margin-left: 0;
     }
     
     .btn-rule {

@@ -66,11 +66,11 @@ async function loadStats() {
         const completeCount = document.getElementById('completeCount');
         const totalImages = document.getElementById('totalImages');
         
-        // 计算投票进度：总投票数 / (图片数 × 5)
-        const totalVotes = stats.total_reviews || 0;
+        // 使用后端提供的进度百分比（单数据源原则）
+        const voteProgress = typeof stats.progress_percent === 'number' ? stats.progress_percent : 0;
         const totalImageCount = stats.total_images || 0;
-        const requiredVotes = totalImageCount * 5;
-        const voteProgress = requiredVotes > 0 ? (totalVotes / requiredVotes * 100) : 0;
+        const requiredVotes = totalImageCount * 5;  // 每张图需要5票
+        const totalVotes = stats.total_reviews || 0;
         
         if (progressPercent) progressPercent.textContent = voteProgress.toFixed(1);
         if (progressFill) progressFill.style.width = voteProgress + '%';

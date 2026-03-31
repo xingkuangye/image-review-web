@@ -101,22 +101,19 @@ def get_all_users(sort_by: str = "id") -> List[UserResponse]:
     cursor = conn.cursor()
     
     # 安全：ORDER BY 注入 - 严格白名单验证
-    # 使用反引号包裹列名，防止SQL关键字冲突
     allowed_sort = {
-        "id": "`id`",
-        "total_reviews": "`review_count`",
-        "last_active": "`last_active`"
+        "id": "u.id",
+        "total_reviews": "review_count",
+        "last_active": "u.last_active"
     }
-    order_col = allowed_sort.get(sort_by)
-    if not order_col:
-        order_col = '"id"'  # 默认使用 id
+    order_col = allowed_sort.get(sort_by, "u.id")
     
-    cursor.execute(f'''
+    cursor.execute('''
         SELECT u.id, u.nickname, u.created_at, u.last_active, u.is_banned, COUNT(r.id) as review_count
         FROM users u
         LEFT JOIN reviews r ON u.id = r.user_id
         GROUP BY u.id
-        ORDER BY {order_col} DESC
+        ORDER BY ''' + order_col + ''' DESC
     ''')
     
     users = []
@@ -277,23 +274,27 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     cursor.execute("SELECT image_id FROM reviews WHERE user_id = ?", (user_id,))
     reviewed_ids = [row['image_id'] for row in cursor.fetchall()]
     
-    # 构建查询
+    # 构建查询 - 使用安全参数化
     if role_id:
-        where_clause = "WHERE i.role_id = ? AND i.id NOT IN ({})".format(
-            ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '0'
-        )
+        placeholders = ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '?'
         params = [role_id] + reviewed_ids if reviewed_ids else [role_id]
+        if reviewed_ids:
+            where_clause = "WHERE i.role_id = ? AND i.id NOT IN (" + placeholders + ")"
+        else:
+            where_clause = "WHERE i.role_id = ?"
     else:
-        where_clause = "WHERE i.id NOT IN ({})".format(
-            ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '0'
-        )
+        placeholders = ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '?'
         params = reviewed_ids if reviewed_ids else []
+        if reviewed_ids:
+            where_clause = "WHERE i.id NOT IN (" + placeholders + ")"
+        else:
+            where_clause = "1=1"
     
-    cursor.execute(f'''
+    cursor.execute('''
         SELECT i.*, r.name as role_name
         FROM images i
         LEFT JOIN roles r ON i.role_id = r.id
-        {where_clause}
+        WHERE ''' + where_clause + '''
         ORDER BY RANDOM()
         LIMIT 1
     ''', params)

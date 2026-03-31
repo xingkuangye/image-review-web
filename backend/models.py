@@ -58,6 +58,7 @@ class StatsResponse(BaseModel):
     fail_count: int
     skip_count: int
     progress_percent: float
+    completed_images: int = 0  # 完成审核的图片数（5人投票且≥3通过）
 
 class RoleStatsResponse(BaseModel):
     role: RoleResponse

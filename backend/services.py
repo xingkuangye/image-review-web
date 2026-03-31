@@ -7,6 +7,12 @@ from typing import Optional, List
 from backend.database import get_db
 from backend.models import *
 
+# ============ 审核规则常量 ============
+# 一张图片需要的最少投票人数
+REQUIRED_VOTES = 5
+# 通过审核需要的最小通过票数
+MIN_PASS_VOTES = 3
+
 # 管理员密码文件路径
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PASSWORD_FILE = os.path.join(BASE_DIR, 'data', 'admin_password.txt')
@@ -95,10 +101,11 @@ def get_all_users(sort_by: str = "id") -> List[UserResponse]:
     cursor = conn.cursor()
     
     # 安全：ORDER BY 注入 - 严格白名单验证
+    # 使用反引号包裹列名，防止SQL关键字冲突
     allowed_sort = {
-        "id": '"id"',
-        "total_reviews": '"review_count"',
-        "last_active": '"last_active"'
+        "id": "`id`",
+        "total_reviews": "`review_count`",
+        "last_active": "`last_active`"
     }
     order_col = allowed_sort.get(sort_by)
     if not order_col:
@@ -380,28 +387,44 @@ def get_overall_stats() -> StatsResponse:
     cursor = conn.cursor()
     
     cursor.execute("SELECT COUNT(*) as count FROM images")
-    total_images = cursor.fetchone()['count']
+    total_images = cursor.fetchone()['count'] or 0
     
+    # 使用单个聚合查询获取所有统计数据
     cursor.execute('''
         SELECT 
             COUNT(DISTINCT image_id) as reviewed_images,
             SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
             SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count,
-            SUM(CASE WHEN status = 'skip' THEN 1 ELSE 0 END) as skip_count
-        FROM reviews
-    ''')
+            SUM(CASE WHEN status = 'skip' THEN 1 ELSE 0 END) as skip_count,
+            SUM(CASE WHEN status != 'skip' THEN 1 ELSE 0 END) as total_reviews,
+            COUNT(DISTINCT CASE WHEN vote_count >= ? AND pass_count >= ? THEN image_id END) as completed_images
+        FROM (
+            SELECT 
+                image_id,
+                COUNT(*) as vote_count,
+                SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count
+            FROM reviews
+            WHERE status != 'skip'
+            GROUP BY image_id
+        )
+    ''', (REQUIRED_VOTES, MIN_PASS_VOTES))
     
     stats = cursor.fetchone()
     conn.close()
     
+    total_reviews = stats['total_reviews'] or 0
+    completed_images = stats['completed_images'] or 0
+    progress_percent = (total_reviews / (total_images * REQUIRED_VOTES) * 100) if total_images > 0 else 0
+    
     return StatsResponse(
         total_images=total_images,
         reviewed_images=stats['reviewed_images'] or 0,
-        total_reviews=0,
+        total_reviews=total_reviews,
         pass_count=stats['pass_count'] or 0,
         fail_count=stats['fail_count'] or 0,
         skip_count=stats['skip_count'] or 0,
-        progress_percent=(stats['reviewed_images'] or 0) / total_images * 100 if total_images > 0 else 0
+        progress_percent=round(progress_percent, 2),
+        completed_images=completed_images
     )
 
 def get_role_stats(role_id: int) -> Optional[StatsResponse]:

@@ -95,10 +95,11 @@ def get_all_users(sort_by: str = "id") -> List[UserResponse]:
     cursor = conn.cursor()
     
     # 安全：ORDER BY 注入 - 严格白名单验证
+    # 使用反引号包裹列名，防止SQL关键字冲突
     allowed_sort = {
-        "id": '"id"',
-        "total_reviews": '"review_count"',
-        "last_active": '"last_active"'
+        "id": "`id`",
+        "total_reviews": "`review_count`",
+        "last_active": "`last_active`"
     }
     order_col = allowed_sort.get(sort_by)
     if not order_col:
@@ -392,16 +393,38 @@ def get_overall_stats() -> StatsResponse:
     ''')
     
     stats = cursor.fetchone()
+    
+    # 计算完成审核的图片数（获得≥5票 且 通过≥3）
+    cursor.execute('''
+        SELECT image_id, 
+               COUNT(*) as total_votes,
+               SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_votes
+        FROM reviews
+        WHERE status != 'skip'
+        GROUP BY image_id
+        HAVING total_votes >= 5 AND pass_votes >= 3
+    ''')
+    completed_images = len(cursor.fetchall())
+    
+    # 计算总投票数（不含skip）
+    cursor.execute('''
+        SELECT COUNT(*) as total_reviews
+        FROM reviews
+        WHERE status != 'skip'
+    ''')
+    total_reviews = cursor.fetchone()['total_reviews'] or 0
+    
     conn.close()
     
     return StatsResponse(
         total_images=total_images,
         reviewed_images=stats['reviewed_images'] or 0,
-        total_reviews=0,
+        total_reviews=total_reviews,
         pass_count=stats['pass_count'] or 0,
         fail_count=stats['fail_count'] or 0,
         skip_count=stats['skip_count'] or 0,
-        progress_percent=(stats['reviewed_images'] or 0) / total_images * 100 if total_images > 0 else 0
+        progress_percent=(total_reviews or 0) / (total_images * 5) * 100 if total_images > 0 else 0,
+        completed_images=completed_images
     )
 
 def get_role_stats(role_id: int) -> Optional[StatsResponse]:

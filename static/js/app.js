@@ -63,11 +63,23 @@ async function loadStats() {
         const reviewedCount = document.getElementById('reviewedCount');
         const totalCount = document.getElementById('totalCount');
         const userReviewCount = document.getElementById('userReviewCount');
+        const completeCount = document.getElementById('completeCount');
+        const totalImages = document.getElementById('totalImages');
         
-        if (progressPercent) progressPercent.textContent = (stats.progress_percent || 0).toFixed(1);
-        if (progressFill) progressFill.style.width = (stats.progress_percent || 0) + '%';
-        if (reviewedCount) reviewedCount.textContent = stats.reviewed_images || 0;
-        if (totalCount) totalCount.textContent = stats.total_images || 0;
+        // 计算投票进度：总投票数 / (图片数 × 5)
+        const totalVotes = stats.total_reviews || 0;
+        const totalImageCount = stats.total_images || 0;
+        const requiredVotes = totalImageCount * 5;
+        const voteProgress = requiredVotes > 0 ? (totalVotes / requiredVotes * 100) : 0;
+        
+        if (progressPercent) progressPercent.textContent = voteProgress.toFixed(1);
+        if (progressFill) progressFill.style.width = voteProgress + '%';
+        if (reviewedCount) reviewedCount.textContent = totalVotes;
+        if (totalCount) totalCount.textContent = requiredVotes;
+        
+        // 显示完成审核的图片数（获得5票且≥3通过）
+        if (completeCount) completeCount.textContent = stats.completed_images || 0;
+        if (totalImages) totalImages.textContent = totalImageCount;
         
         // 更新用户审核数
         if (currentUser) {

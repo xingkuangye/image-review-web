@@ -4,7 +4,6 @@ import random
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
-from sqlalchemy import text, select, func
 from backend.database import get_db
 from backend.models import *
 
@@ -391,18 +390,19 @@ def get_overall_stats() -> StatsResponse:
     conn = get_db()
     cursor = conn.cursor()
     
-    cursor.execute(text("SELECT COUNT(*) as count FROM images"))
+    cursor.execute("SELECT COUNT(*) as count FROM images")
     total_images = cursor.fetchone()['count'] or 0
     
     # 使用单个聚合查询获取所有统计数据
-    cursor.execute(text('''
+    # 注意：子查询中 WHERE status != 'skip' 确保 vote_count 不包含跳过评审
+    cursor.execute('''
         SELECT 
             COUNT(DISTINCT image_id) as reviewed_images,
             SUM(pass_count) as pass_count,
             SUM(fail_count) as fail_count,
             SUM(skip_count) as skip_count,
             SUM(vote_count) as total_reviews,
-            COUNT(DISTINCT CASE WHEN vote_count >= :required_votes AND pass_count >= :min_pass_votes THEN image_id END) as completed_images
+            COUNT(DISTINCT CASE WHEN vote_count >= ? AND pass_count >= ? THEN image_id END) as completed_images
         FROM (
             SELECT 
                 image_id,
@@ -411,9 +411,10 @@ def get_overall_stats() -> StatsResponse:
                 SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count,
                 SUM(CASE WHEN status = 'skip' THEN 1 ELSE 0 END) as skip_count
             FROM reviews
+            WHERE status != 'skip'
             GROUP BY image_id
         )
-    '''), {"required_votes": REQUIRED_VOTES, "min_pass_votes": MIN_PASS_VOTES})
+    ''', (REQUIRED_VOTES, MIN_PASS_VOTES))
     
     stats = cursor.fetchone()
     conn.close()
@@ -438,10 +439,10 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
     conn = get_db()
     cursor = conn.cursor()
     
-    cursor.execute(text("SELECT COUNT(*) as count FROM images WHERE role_id = :role_id"), {"role_id": role_id})
+    cursor.execute("SELECT COUNT(*) as count FROM images WHERE role_id = ?", (role_id,))
     total_images = cursor.fetchone()['count']
     
-    cursor.execute(text('''
+    cursor.execute('''
         SELECT 
             COUNT(DISTINCT r.image_id) as reviewed_images,
             SUM(CASE WHEN r.status = 'pass' THEN 1 ELSE 0 END) as pass_count,
@@ -449,8 +450,8 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
             SUM(CASE WHEN r.status = 'skip' THEN 1 ELSE 0 END) as skip_count
         FROM reviews r
         JOIN images i ON r.image_id = i.id
-        WHERE i.role_id = :role_id
-    '''), {"role_id": role_id})
+        WHERE i.role_id = ?
+    ''', (role_id,))
     
     stats = cursor.fetchone()
     conn.close()

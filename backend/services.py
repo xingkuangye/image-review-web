@@ -108,12 +108,18 @@ def get_all_users(sort_by: str = "id") -> List[UserResponse]:
     }
     order_col = allowed_sort.get(sort_by, "u.id")
     
-    cursor.execute('''
+    # 当使用聚合列排序时，需要确保列名明确
+    if order_col == "review_count":
+        order_clause = "review_count DESC"
+    else:
+        order_clause = order_col + " DESC"
+    
+    cursor.execute(f'''
         SELECT u.id, u.nickname, u.created_at, u.last_active, u.is_banned, COUNT(r.id) as review_count
         FROM users u
         LEFT JOIN reviews r ON u.id = r.user_id
         GROUP BY u.id
-        ORDER BY ''' + order_col + ''' DESC
+        ORDER BY {order_clause}
     ''')
     
     users = []
@@ -394,18 +400,19 @@ def get_overall_stats() -> StatsResponse:
     cursor.execute('''
         SELECT 
             COUNT(DISTINCT image_id) as reviewed_images,
-            SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
-            SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count,
-            SUM(CASE WHEN status = 'skip' THEN 1 ELSE 0 END) as skip_count,
-            SUM(CASE WHEN status != 'skip' THEN 1 ELSE 0 END) as total_reviews,
+            SUM(pass_count) as pass_count,
+            SUM(fail_count) as fail_count,
+            SUM(skip_count) as skip_count,
+            SUM(vote_count) as total_reviews,
             COUNT(DISTINCT CASE WHEN vote_count >= ? AND pass_count >= ? THEN image_id END) as completed_images
         FROM (
             SELECT 
                 image_id,
                 COUNT(*) as vote_count,
-                SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count
+                SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
+                SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count,
+                SUM(CASE WHEN status = 'skip' THEN 1 ELSE 0 END) as skip_count
             FROM reviews
-            WHERE status != 'skip'
             GROUP BY image_id
         )
     ''', (REQUIRED_VOTES, MIN_PASS_VOTES))

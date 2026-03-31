@@ -4,6 +4,7 @@ import random
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
+from sqlalchemy import text
 from backend.database import get_db
 from backend.models import *
 
@@ -110,13 +111,12 @@ def get_all_users(sort_by: str = "id") -> List[UserResponse]:
     order_col, order_expr = sort_info[0], sort_info[1]
     order_clause = f"{order_expr} DESC"
     
-    cursor.execute(text(f'''
+    cursor.execute(text('''
         SELECT u.id, u.nickname, u.created_at, u.last_active, u.is_banned, COUNT(r.id) as review_count
         FROM users u
         LEFT JOIN reviews r ON u.id = r.user_id
         GROUP BY u.id
-        ORDER BY {order_clause}
-    '''))
+        ORDER BY ''' + order_clause)
     
     users = []
     for row in cursor.fetchall():
@@ -291,14 +291,14 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     
     where_clause = ' AND '.join(conditions) if conditions else '1=1'
     
-    query = f'''
+    query = text('''
         SELECT i.*, r.name as role_name
         FROM images i
         LEFT JOIN roles r ON i.role_id = r.id
-        WHERE {where_clause}
+        WHERE ''' + where_clause + '''
         ORDER BY RANDOM()
         LIMIT 1
-    '''
+    ''')
     cursor.execute(query, params)
     
     row = cursor.fetchone()

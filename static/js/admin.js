@@ -1,22 +1,24 @@
 // ========== 全局状态 ==========
 // 使用sessionStorage存储，页面关闭后自动清除，比localStorage更安全
-let adminToken = sessionStorage.getItem('admin_session') || null;
 
 // ========== 认证辅助函数 ==========
 function ensureAdminToken() {
-    if (!adminToken) {
+    // 每次都从sessionStorage读取最新token
+    const token = sessionStorage.getItem('admin_session');
+    if (!token) {
         console.error('Admin token is missing.');
         throw new Error('Admin authentication required.');
     }
+    return token;
 }
 
 // Helper for admin-authenticated requests
 async function adminFetch(url, options = {}) {
-    ensureAdminToken();
+    const token = ensureAdminToken();
     
     const headers = {
         ...(options.headers || {}),
-        'X-Admin-Password': adminToken
+        'X-Admin-Password': token
     };
     
     const response = await fetch(url, {

@@ -275,26 +275,26 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     reviewed_ids = [row['image_id'] for row in cursor.fetchall()]
     
     # 构建查询 - 使用安全参数化
-    if role_id:
-        placeholders = ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '?'
-        params = [role_id] + reviewed_ids if reviewed_ids else [role_id]
-        if reviewed_ids:
-            where_clause = "WHERE i.role_id = ? AND i.id NOT IN (" + placeholders + ")"
-        else:
-            where_clause = "WHERE i.role_id = ?"
-    else:
-        placeholders = ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '?'
-        params = reviewed_ids if reviewed_ids else []
-        if reviewed_ids:
-            where_clause = "WHERE i.id NOT IN (" + placeholders + ")"
-        else:
-            where_clause = "1=1"
+    # 构建条件列表，避免 WHERE 重复
+    conditions = []
+    params = []
     
-    cursor.execute('''
+    if role_id:
+        conditions.append('i.role_id = ?')
+        params.append(role_id)
+    
+    if reviewed_ids:
+        placeholders = ','.join(['?'] * len(reviewed_ids))
+        conditions.append(f'i.id NOT IN ({placeholders})')
+        params.extend(reviewed_ids)
+    
+    where_clause = ' AND '.join(conditions) if conditions else '1=1'
+    
+    cursor.execute(f'''
         SELECT i.*, r.name as role_name
         FROM images i
         LEFT JOIN roles r ON i.role_id = r.id
-        WHERE ''' + where_clause + '''
+        WHERE {where_clause}
         ORDER BY RANDOM()
         LIMIT 1
     ''', params)

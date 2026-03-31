@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title id="pageTitle">图片审核系统</title>
+    <link id="pageIcon" rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📷</text></svg>">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <span class="user-info">
+                <span id="userNickname" class="nickname" onclick="editNickname()">加载中...</span>
+                <span class="review-count">已审核: <span id="userReviewCount">0</span> 张</span>
+            </span>
+        </div>
+        <div class="nav-center">
+            <div class="progress-container">
+                <span class="progress-label">总进度: <span id="progressPercent">0</span>%</span>
+                <div class="progress-bar">
+                    <div id="progressFill" class="progress-fill"></div>
+                </div>
+                <span class="progress-detail"><span id="reviewedCount">0</span>/<span id="totalCount">0</span></span>
+            </div>
+        </div>
+        <div class="nav-right">
+            <button id="ruleBtn" class="btn btn-rule" onclick="showRuleModal()">审核要求</button>
+            <span id="roleProgress" class="role-progress" style="display:none;">
+                当前角色进度: <span id="roleProgressPercent">0</span>%
+            </span>
+        </div>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="main-content">
+        <!-- 左上角：上一张 -->
+        <button id="prevBtn" class="btn btn-prev" onclick="prevImage()">上一张</button>
+
+        <!-- 右上角：无法定夺 -->
+        <button id="skipBtn" class="btn btn-skip" onclick="skipImage()">无法定夺</button>
+
+        <!-- 中央图片区域 -->
+        <div class="image-container">
+            <img id="reviewImage" src="" alt="待审核图片" onerror="imageLoadError()">
+            <div id="loadingIndicator" class="loading">加载中...</div>
+            <div id="noImageHint" class="no-image-hint" style="display:none;">
+                <p>暂无待审核图片</p>
+                <p class="sub-hint">可能的原因：</p>
+                <ul class="sub-hint">
+                    <li>所有图片已被审核完毕</li>
+                    <li>尚未配置角色图库</li>
+                    <li>当前角色下无待审核图片</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 左下角：不通过 -->
+        <button id="failBtn" class="btn btn-fail" onclick="submitReview('fail')">不通过</button>
+
+        <!-- 右下角：通过 -->
+        <button id="passBtn" class="btn btn-pass" onclick="submitReview('pass')">通过</button>
+
+        <!-- 中间底部：下载按钮 -->
+        <button id="downloadBtn" class="btn btn-download" onclick="downloadImage()">下载</button>
+    </main>
+
+    <!-- 角色选择按钮 -->
+    <button id="roleSelectBtn" class="btn btn-role-select" onclick="showRoleModal()">选择角色</button>
+
+    <!-- 角色选择弹窗 -->
+    <div id="roleModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>选择角色</h3>
+                <span class="close" onclick="closeRoleModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <button class="btn btn-all-roles" onclick="selectRole(null)">全部角色</button>
+                <div id="roleList" class="role-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 昵称编辑弹窗 -->
+    <div id="nicknameModal" class="modal">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <h3>修改昵称</h3>
+                <span class="close" onclick="closeNicknameModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="nicknameInput" class="input" placeholder="请输入昵称" maxlength="20">
+                <button class="btn btn-confirm" onclick="saveNickname()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片详情弹窗 -->
+    <div id="imageDetailModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>图片详情</h3>
+                <span class="close" onclick="closeImageDetailModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="image-stats">
+                    <span>审核次数: <span id="detailReviewCount">0</span></span>
+                    <span>通过: <span id="detailPassCount" class="text-pass">0</span></span>
+                    <span>不通过: <span id="detailFailCount" class="text-fail">0</span></span>
+                    <span>跳过: <span id="detailSkipCount">0</span></span>
+                </div>
+                <div id="myStatus" class="my-status"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 审核要求弹窗 -->
+    <div id="ruleModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h3>审核要求</h3>
+                <span class="close" onclick="closeRuleModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div id="ruleContent" class="rule-content">
+                    <p style="color:#888;">加载中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

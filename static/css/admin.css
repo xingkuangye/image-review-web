@@ -1,0 +1,1144 @@
+/* ========== 基础样式 ========== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #1a1a1a;
+    color: #fff;
+    min-height: 100vh;
+}
+
+/* ========== 登录页面 ========== */
+.page {
+    min-height: 100vh;
+}
+
+.login-box {
+    max-width: 400px;
+    margin: 100px auto;
+    padding: 40px;
+    background-color: #252525;
+    border: 1px solid #333;
+}
+
+.login-box h1 {
+    font-size: 24px;
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.login-hint {
+    color: #888;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.login-tip {
+    color: #666;
+    font-size: 12px;
+    margin-top: 16px;
+    text-align: center;
+}
+
+.back-link {
+    display: block;
+    text-align: center;
+    margin-top: 24px;
+    color: #1976d2;
+    text-decoration: none;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+/* ========== 导航栏 ========== */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+    background-color: #0d0d0d;
+    border-bottom: 1px solid #333;
+}
+
+.navbar h2 {
+    font-size: 20px;
+    font-weight: 500;
+}
+
+/* ========== 标签页 ========== */
+.tabs {
+    display: flex;
+    background-color: #0d0d0d;
+    border-bottom: 1px solid #333;
+}
+
+.tab {
+    padding: 16px 24px;
+    background: none;
+    border: none;
+    color: #888;
+    font-size: 14px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.tab:hover {
+    color: #fff;
+}
+
+.tab.active {
+    color: #fff;
+    border-bottom-color: #1976d2;
+}
+
+.tab-content {
+    display: none;
+    padding: 24px;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* ========== 面板 ========== */
+.panel {
+    background-color: #252525;
+    border: 1px solid #333;
+    margin-bottom: 24px;
+}
+
+.panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #333;
+}
+
+.panel-header h3 {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+/* ========== 按钮 ========== */
+.btn {
+    border: none;
+    padding: 10px 20px;
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+.btn-login {
+    width: 100%;
+    background-color: #1976d2;
+    color: #fff;
+    padding: 14px;
+}
+
+.btn-login:hover {
+    background-color: #2196f3;
+}
+
+.btn-add {
+    background-color: #1976d2;
+    color: #fff;
+}
+
+.btn-add:hover {
+    background-color: #2196f3;
+}
+
+.btn-export {
+    background-color: #388e3c;
+    color: #fff;
+    padding: 10px 24px;
+}
+
+.btn-export:hover {
+    background-color: #4CAF50;
+}
+
+.btn-logout {
+    background-color: #333;
+    color: #fff;
+}
+
+.btn-logout:hover {
+    background-color: #444;
+}
+
+.btn-confirm {
+    width: 100%;
+    background-color: #1976d2;
+    color: #fff;
+    padding: 14px;
+    margin-top: 16px;
+}
+
+.btn-confirm:hover {
+    background-color: #2196f3;
+}
+
+.btn-small {
+    padding: 6px 12px;
+    font-size: 12px;
+}
+
+.btn-danger {
+    background-color: #d32f2f;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: #f44336;
+}
+
+.btn-warning {
+    background-color: #f57c00;
+    color: #fff;
+}
+
+.btn-warning:hover {
+    background-color: #ff9800;
+}
+
+.btn-success {
+    background-color: #388e3c;
+    color: #fff;
+}
+
+.btn-success:hover {
+    background-color: #4CAF50;
+}
+
+/* ========== 输入框 ========== */
+.input {
+    width: 100%;
+    padding: 12px;
+    background-color: #333;
+    border: 1px solid #444;
+    color: #fff;
+    font-size: 14px;
+}
+
+.input:focus {
+    outline: none;
+    border-color: #1976d2;
+}
+
+.input-file {
+    width: 100%;
+    padding: 10px;
+    background-color: #333;
+    border: 1px solid #444;
+    color: #fff;
+    font-size: 14px;
+}
+
+select.input {
+    cursor: pointer;
+}
+
+.form-group {
+    margin-bottom: 16px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    color: #888;
+    font-size: 14px;
+}
+
+/* ========== 角色列表 ========== */
+.role-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.role-item {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #333;
+}
+
+.role-item:last-child {
+    border-bottom: none;
+}
+
+.role-avatar {
+    width: 48px;
+    height: 48px;
+    background-color: #333;
+    margin-right: 16px;
+    object-fit: cover;
+}
+
+.role-info {
+    flex: 1;
+}
+
+.role-name {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.role-path {
+    font-size: 12px;
+    color: #888;
+    word-break: break-all;
+}
+
+.role-stats {
+    text-align: right;
+    margin-right: 16px;
+}
+
+.role-stats .pass {
+    color: #4CAF50;
+}
+
+.role-stats .fail {
+    color: #f44336;
+}
+
+.role-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ========== 用户列表 ========== */
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.sort-controls label {
+    color: #888;
+    font-size: 14px;
+}
+
+.user-list {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.user-item {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #333;
+}
+
+.user-item:last-child {
+    border-bottom: none;
+}
+
+.user-item.banned {
+    opacity: 0.5;
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    background-color: #333;
+    border-radius: 50%;
+    margin-right: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+}
+
+.user-info {
+    flex: 1;
+}
+
+.user-nickname {
+    font-size: 16px;
+    margin-bottom: 4px;
+}
+
+.user-id {
+    font-size: 12px;
+    color: #888;
+}
+
+.user-stats {
+    text-align: center;
+    margin-right: 24px;
+}
+
+.user-stats .count {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.user-stats .label {
+    font-size: 12px;
+    color: #888;
+}
+
+.user-last-active {
+    text-align: center;
+    margin-right: 24px;
+    min-width: 140px;
+}
+
+.user-last-active .time {
+    font-size: 14px;
+}
+
+.user-last-active .label {
+    font-size: 12px;
+    color: #888;
+}
+
+.user-status {
+    margin-right: 16px;
+}
+
+.user-status .badge {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.user-status .badge-banned {
+    background-color: #d32f2f;
+    color: #fff;
+}
+
+.user-status .badge-active {
+    background-color: #388e3c;
+    color: #fff;
+}
+
+.user-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ========== 审核记录列表 ========== */
+.reviews-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.review-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid #333;
+}
+
+.review-item:last-child {
+    border-bottom: none;
+}
+
+.review-thumb {
+    width: 80px;
+    height: 60px;
+    background-color: #333;
+    margin-right: 16px;
+    object-fit: cover;
+}
+
+.review-status {
+    flex: 1;
+}
+
+.review-status .status {
+    padding: 4px 8px;
+    font-size: 12px;
+}
+
+.review-status .status-pass {
+    background-color: #388e3c;
+    color: #fff;
+}
+
+.review-status .status-fail {
+    background-color: #d32f2f;
+    color: #fff;
+}
+
+.review-status .status-skip {
+    background-color: #666;
+    color: #fff;
+}
+
+.review-time {
+    font-size: 12px;
+    color: #888;
+    margin-top: 4px;
+}
+
+.review-path {
+    flex: 2;
+    font-size: 12px;
+    color: #888;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ========== 统计页面 ========== */
+.stats-overview {
+    padding: 20px;
+}
+
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.progress-label {
+    font-size: 14px;
+    color: #888;
+    min-width: 80px;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 24px;
+    background-color: #333;
+}
+
+.progress-fill {
+    height: 100%;
+    background-color: #4CAF50;
+    transition: width 0.3s;
+}
+
+.progress-text {
+    font-size: 14px;
+    min-width: 50px;
+    text-align: right;
+}
+
+.stats-cards {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+}
+
+.stat-card {
+    background-color: #1a1a1a;
+    padding: 20px;
+    text-align: center;
+    border: 1px solid #333;
+}
+
+.stat-value {
+    font-size: 32px;
+    font-weight: 500;
+    margin-bottom: 8px;
+}
+
+.stat-label {
+    font-size: 14px;
+    color: #888;
+}
+
+.text-pass {
+    color: #4CAF50;
+}
+
+.text-fail {
+    color: #f44336;
+}
+
+/* ========== 角色统计列表 ========== */
+.role-stats-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.role-stats-item {
+    padding: 16px 20px;
+    border-bottom: 1px solid #333;
+}
+
+.role-stats-item:last-child {
+    border-bottom: none;
+}
+
+.role-stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.role-stats-name {
+    font-size: 16px;
+}
+
+.role-stats-percent {
+    font-size: 14px;
+    color: #888;
+}
+
+.role-stats-bar {
+    height: 8px;
+    background-color: #333;
+    margin-bottom: 12px;
+}
+
+.role-stats-fill {
+    height: 100%;
+    background-color: #4CAF50;
+}
+
+.role-stats-details {
+    display: flex;
+    gap: 24px;
+    font-size: 14px;
+}
+
+/* ========== 模态框 ========== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: #1a1a1a;
+    margin: 60px auto;
+    padding: 0;
+    width: 90%;
+    max-width: 600px;
+    border: 1px solid #333;
+}
+
+.modal-content.modal-large {
+    max-width: 900px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #333;
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.close {
+    font-size: 24px;
+    cursor: pointer;
+    color: #888;
+    line-height: 1;
+}
+
+.close:hover {
+    color: #fff;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+/* ========== 错误提示 ========== */
+.error {
+    color: #f44336;
+    font-size: 14px;
+    text-align: center;
+    margin-top: 12px;
+}
+
+/* ========== 滚动条 ========== */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #444;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* ========== 设置页面样式 ========== */
+.settings-form {
+    padding: 20px;
+}
+
+.settings-form .form-group {
+    margin-bottom: 20px;
+}
+
+.settings-form label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.textarea {
+    resize: vertical;
+    min-height: 100px;
+    font-family: inherit;
+}
+
+/* ========== 备份列表样式 ========== */
+.backup-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.backup-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #333;
+}
+
+.backup-item:last-child {
+    border-bottom: none;
+}
+
+.backup-info {
+    flex: 1;
+}
+
+.backup-name {
+    font-size: 14px;
+    font-family: monospace;
+    margin-bottom: 4px;
+    color: #fff;
+}
+
+.backup-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 12px;
+    color: #888;
+}
+
+.backup-actions {
+    display: flex;
+    gap: 8px;
+}
+
+/* ========== 时间选择器样式 ========== */
+input[type="time"] {
+    color-scheme: dark;
+}
+
+/* ========== 移动端响应式适配 ========== */
+@media screen and (max-width: 768px) {
+    /* 登录页面 */
+    .login-box {
+        margin: 40px 16px;
+        padding: 24px;
+        max-width: none;
+    }
+    
+    .login-box h1 {
+        font-size: 20px;
+        margin-bottom: 20px;
+    }
+    
+    /* 导航栏 */
+    .navbar {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .navbar h2 {
+        font-size: 18px;
+    }
+    
+    /* 标签页 */
+    .tabs {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tab {
+        padding: 12px 16px;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    
+    /* 面板内容 */
+    .tab-content {
+        padding: 16px;
+    }
+    
+    .panel {
+        margin-bottom: 16px;
+    }
+    
+    .panel-header {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .panel-header h3 {
+        font-size: 15px;
+    }
+    
+    /* 按钮 */
+    .btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+    
+    .btn-small {
+        padding: 6px 10px;
+        font-size: 12px;
+    }
+    
+    /* 输入框 */
+    .input {
+        padding: 10px;
+        font-size: 14px;
+    }
+    
+    /* 角色列表 */
+    .role-item {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+    }
+    
+    .role-avatar {
+        width: 40px;
+        height: 40px;
+        margin-right: 12px;
+    }
+    
+    .role-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .role-name {
+        font-size: 15px;
+    }
+    
+    .role-path {
+        font-size: 11px;
+    }
+    
+    .role-stats {
+        display: none;
+    }
+    
+    .role-actions {
+        width: 100%;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #333;
+        justify-content: flex-end;
+    }
+    
+    /* 用户列表 */
+    .user-item {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+    }
+    
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        margin-right: 12px;
+    }
+    
+    .user-info {
+        flex: 1;
+        min-width: 0;
+    }
+    
+    .user-nickname {
+        font-size: 15px;
+    }
+    
+    .user-stats,
+    .user-last-active {
+        display: none;
+    }
+    
+    .user-status {
+        width: 100%;
+        margin-top: 8px;
+        margin-right: 0;
+    }
+    
+    .user-actions {
+        width: 100%;
+        margin-top: 8px;
+        justify-content: flex-end;
+    }
+    
+    /* 审核记录 */
+    .review-item {
+        padding: 10px 12px;
+    }
+    
+    .review-thumb {
+        width: 60px;
+        height: 45px;
+        margin-right: 12px;
+    }
+    
+    .review-path {
+        flex: 1;
+        font-size: 11px;
+    }
+    
+    /* 统计页面 */
+    .stats-overview {
+        padding: 16px;
+    }
+    
+    .progress-container {
+        flex-wrap: wrap;
+    }
+    
+    .progress-label {
+        width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    .stats-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+    }
+    
+    .stat-card {
+        padding: 16px;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+    }
+    
+    .stat-label {
+        font-size: 12px;
+    }
+    
+    /* 角色统计列表 */
+    .role-stats-item {
+        padding: 12px 16px;
+    }
+    
+    .role-stats-details {
+        gap: 16px;
+        font-size: 13px;
+    }
+    
+    /* 模态框 */
+    .modal-content {
+        margin: 20px auto;
+        width: 95%;
+        max-height: 85vh;
+        overflow-y: auto;
+    }
+    
+    .modal-content.modal-large {
+        max-width: 95%;
+    }
+    
+    .modal-header {
+        padding: 12px 16px;
+    }
+    
+    .modal-header h3 {
+        font-size: 16px;
+    }
+    
+    .modal-body {
+        padding: 16px;
+    }
+    
+    /* 备份列表 */
+    .backup-item {
+        padding: 12px 16px;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+    
+    .backup-info {
+        width: 100%;
+    }
+    
+    .backup-name {
+        font-size: 13px;
+    }
+    
+    .backup-actions {
+        width: 100%;
+        justify-content: flex-end;
+    }
+    
+    /* 设置表单 */
+    .settings-form {
+        padding: 16px;
+    }
+    
+    .settings-form .form-group {
+        margin-bottom: 16px;
+    }
+    
+    /* 排序控制 */
+    .sort-controls {
+        width: 100%;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+    }
+}
+
+/* 手机端小屏幕 */
+@media screen and (max-width: 480px) {
+    /* 登录页面 */
+    .login-box {
+        margin: 20px 12px;
+        padding: 20px 16px;
+    }
+    
+    .login-box h1 {
+        font-size: 18px;
+    }
+    
+    .login-hint {
+        font-size: 13px;
+    }
+    
+    /* 标签页 */
+    .tab {
+        padding: 10px 12px;
+        font-size: 12px;
+    }
+    
+    /* 面板标题 */
+    .panel-header h3 {
+        font-size: 14px;
+    }
+    
+    /* 按钮 */
+    .btn {
+        padding: 8px 12px;
+        font-size: 12px;
+    }
+    
+    /* 角色列表 */
+    .role-avatar {
+        width: 36px;
+        height: 36px;
+    }
+    
+    .role-name {
+        font-size: 14px;
+    }
+    
+    /* 用户列表 */
+    .user-avatar {
+        width: 32px;
+        height: 32px;
+        font-size: 14px;
+    }
+    
+    .user-nickname {
+        font-size: 14px;
+    }
+    
+    /* 审核记录 */
+    .review-thumb {
+        width: 50px;
+        height: 38px;
+    }
+    
+    /* 统计卡片 */
+    .stats-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-value {
+        font-size: 28px;
+    }
+    
+    /* 模态框 */
+    .modal-content {
+        margin: 10px auto;
+        width: 98%;
+    }
+    
+    .modal-header h3 {
+        font-size: 15px;
+    }
+    
+    /* 备份项目 */
+    .backup-name {
+        font-size: 12px;
+        word-break: break-all;
+    }
+}
+
+/* 平板横屏 */
+@media screen and (min-width: 768px) and (max-width: 1024px) and (orientation: landscape) {
+    .stats-cards {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .user-item {
+        flex-wrap: nowrap;
+    }
+    
+    .user-stats,
+    .user-last-active {
+        display: block;
+    }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    .btn:active {
+        transform: scale(0.96);
+        opacity: 0.9;
+    }
+    
+    .tab:active {
+        opacity: 0.8;
+    }
+    
+    .close:active {
+        transform: scale(1.1);
+    }
+}

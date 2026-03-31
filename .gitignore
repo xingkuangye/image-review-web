@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 项目运行时生成
+data/*.db
+data/*.db-journal
+backups/*.db
+backups/before_*.db
+logs/*.log
+uploads/*
+!uploads/.gitkeep
+exports/*.zip
+exports/*.csv
+
+# 敏感文件
+data/admin_password.txt
+*.env
+.env
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# 临时文件
+*.tmp
+*.temp
+*.bak
+
+# 其他
+dist/
+original_backup/
+backup_v0.8/

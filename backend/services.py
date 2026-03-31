@@ -1,0 +1,532 @@
+import os
+import uuid
+import random
+from datetime import datetime
+from pathlib import Path
+from typing import Optional, List
+from backend.database import get_db
+from backend.models import *
+
+# 管理员密码文件路径
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+PASSWORD_FILE = os.path.join(BASE_DIR, 'data', 'admin_password.txt')
+LOGS_DIR = os.path.join(BASE_DIR, 'logs')
+
+def get_admin_password():
+    """获取管理员密码 - 读取现有密码，否则生成新密码"""
+    if os.path.exists(PASSWORD_FILE):
+        with open(PASSWORD_FILE, 'r') as f:
+            saved_password = f.read().strip()
+            if saved_password:
+                return saved_password
+    # 生成新密码
+    password = str(uuid.uuid4())[:8].upper()
+    os.makedirs(os.path.dirname(PASSWORD_FILE), exist_ok=True)
+    with open(PASSWORD_FILE, 'w') as f:
+        f.write(password)
+    return password
+
+def log_message(message: str):
+    """记录日志到文件"""
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    log_file = os.path.join(LOGS_DIR, f'app_{datetime.now().strftime("%Y%m%d")}.log')
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    with open(log_file, 'a', encoding='utf-8') as f:
+        f.write(f"[{timestamp}] {message}\n")
+
+# ============ 用户服务 ============
+
+def create_or_get_user(user_id: str, nickname: str = "匿名用户") -> UserResponse:
+    """创建或获取用户"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 检查用户是否存在
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    
+    if not user:
+        # 创建新用户
+        now = datetime.now().isoformat()
+        cursor.execute(
+            "INSERT INTO users (id, nickname, created_at, last_active) VALUES (?, ?, ?, ?)",
+            (user_id, nickname, now, now)
+        )
+        conn.commit()
+        cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+    
+    # 获取用户审核数量
+    cursor.execute("SELECT COUNT(*) as count FROM reviews WHERE user_id = ?", (user_id,))
+    total_reviews = cursor.fetchone()['count']
+    
+    conn.close()
+    
+    return UserResponse(
+        id=user['id'],
+        nickname=user['nickname'],
+        created_at=user['created_at'],
+        last_active=user['last_active'],
+        is_banned=user['is_banned'],
+        total_reviews=total_reviews
+    )
+
+def update_user_nickname(user_id: str, nickname: str) -> bool:
+    """更新用户昵称"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET nickname = ? WHERE id = ?", (nickname, user_id))
+    conn.commit()
+    conn.close()
+    return True
+
+def update_user_activity(user_id: str):
+    """更新用户最后活跃时间"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET last_active = ? WHERE id = ?", 
+                   (datetime.now().isoformat(), user_id))
+    conn.commit()
+    conn.close()
+
+def get_all_users(sort_by: str = "id") -> List[UserResponse]:
+    """获取所有用户"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 安全：ORDER BY 注入 - 严格白名单验证
+    allowed_sort = {
+        "id": '"id"',
+        "total_reviews": '"review_count"',
+        "last_active": '"last_active"'
+    }
+    order_col = allowed_sort.get(sort_by)
+    if not order_col:
+        order_col = '"id"'  # 默认使用 id
+    
+    cursor.execute(f'''
+        SELECT u.id, u.nickname, u.created_at, u.last_active, u.is_banned, COUNT(r.id) as review_count
+        FROM users u
+        LEFT JOIN reviews r ON u.id = r.user_id
+        GROUP BY u.id
+        ORDER BY {order_col} DESC
+    ''')
+    
+    users = []
+    for row in cursor.fetchall():
+        users.append(UserResponse(
+            id=row['id'],
+            nickname=row['nickname'],
+            created_at=row['created_at'],
+            last_active=row['last_active'],
+            is_banned=row['is_banned'],
+            total_reviews=row['review_count']
+        ))
+    
+    conn.close()
+    return users
+
+def ban_user(user_id: str, banned: bool = True):
+    """封禁/解封用户"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE users SET is_banned = ? WHERE id = ?", (1 if banned else 0, user_id))
+    conn.commit()
+    conn.close()
+
+def clear_user_reviews(user_id: str):
+    """清除用户的所有审核结果"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM reviews WHERE user_id = ?", (user_id,))
+    conn.commit()
+    conn.close()
+
+# ============ 角色服务 ============
+
+def create_role(name: str, image_path: str, avatar_path: str = None) -> RoleResponse:
+    """创建角色"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute(
+            "INSERT INTO roles (name, image_path, avatar_path) VALUES (?, ?, ?)",
+            (name, image_path, avatar_path)
+        )
+        role_id = cursor.lastrowid
+        conn.commit()
+        
+        # 扫描并添加图片
+        scan_and_add_images(role_id, image_path)
+        
+        cursor.execute("SELECT * FROM roles WHERE id = ?", (role_id,))
+        role = cursor.fetchone()
+        conn.close()
+        
+        return RoleResponse(
+            id=role['id'],
+            name=role['name'],
+            image_path=role['image_path'],
+            avatar_path=role['avatar_path']
+        )
+    except Exception as e:
+        conn.close()
+        raise e
+
+def get_all_roles() -> List[RoleResponse]:
+    """获取所有角色（优化：使用JOIN一次性查询）"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 优化：使用单个查询获取所有数据，避免N+1问题
+    cursor.execute('''
+        SELECT 
+            r.id, r.name, r.image_path, r.avatar_path,
+            COUNT(DISTINCT i.id) as total_images,
+            SUM(CASE WHEN rev.status = 'pass' THEN 1 ELSE 0 END) as pass_count,
+            SUM(CASE WHEN rev.status = 'fail' THEN 1 ELSE 0 END) as fail_count
+        FROM roles r
+        LEFT JOIN images i ON r.id = i.role_id
+        LEFT JOIN reviews rev ON i.id = rev.image_id
+        GROUP BY r.id
+    ''')
+    
+    roles = []
+    for row in cursor.fetchall():
+        pass_count = row['pass_count'] or 0
+        fail_count = row['fail_count'] or 0
+        roles.append(RoleResponse(
+            id=row['id'],
+            name=row['name'],
+            image_path=row['image_path'],
+            avatar_path=row['avatar_path'],
+            total_images=row['total_images'] or 0,
+            reviewed_images=pass_count + fail_count,
+            pass_count=pass_count,
+            fail_count=fail_count
+        ))
+    
+    conn.close()
+    return roles
+
+def delete_role(role_id: int):
+    """删除角色"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM images WHERE role_id = ?", (role_id,))
+    cursor.execute("DELETE FROM roles WHERE id = ?", (role_id,))
+    conn.commit()
+    conn.close()
+
+def refresh_role_images(role_id: int):
+    """刷新角色图片"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT image_path FROM roles WHERE id = ?", (role_id,))
+    role = cursor.fetchone()
+    
+    if role:
+        # 删除旧图片记录
+        cursor.execute("DELETE FROM images WHERE role_id = ?", (role_id,))
+        # 重新扫描
+        scan_and_add_images(role_id, role['image_path'])
+    
+    conn.commit()
+    conn.close()
+
+# ============ 图片服务 ============
+
+def scan_and_add_images(role_id: int, base_path: str):
+    """扫描目录添加图片"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    supported_formats = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'}
+    now = datetime.now().isoformat()
+    
+    for root, dirs, files in os.walk(base_path):
+        for file in files:
+            ext = os.path.splitext(file)[1].lower()
+            if ext in supported_formats:
+                full_path = os.path.join(root, file)
+                try:
+                    cursor.execute(
+                        "INSERT OR IGNORE INTO images (path, role_id, created_at) VALUES (?, ?, ?)",
+                        (full_path, role_id, now)
+                    )
+                except Exception as e:
+                    log_message(f"扫描图片时发生错误: {full_path} - {str(e)}")
+    
+    conn.commit()
+    conn.close()
+
+def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optional[ImageResponse]:
+    """获取待审核图片"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 获取用户已审核的图片
+    cursor.execute("SELECT image_id FROM reviews WHERE user_id = ?", (user_id,))
+    reviewed_ids = [row['image_id'] for row in cursor.fetchall()]
+    
+    # 构建查询
+    if role_id:
+        where_clause = "WHERE i.role_id = ? AND i.id NOT IN ({})".format(
+            ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '0'
+        )
+        params = [role_id] + reviewed_ids if reviewed_ids else [role_id]
+    else:
+        where_clause = "WHERE i.id NOT IN ({})".format(
+            ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '0'
+        )
+        params = reviewed_ids if reviewed_ids else []
+    
+    cursor.execute(f'''
+        SELECT i.*, r.name as role_name
+        FROM images i
+        LEFT JOIN roles r ON i.role_id = r.id
+        {where_clause}
+        ORDER BY RANDOM()
+        LIMIT 1
+    ''', params)
+    
+    row = cursor.fetchone()
+    
+    if row:
+        # 统计审核情况
+        cursor.execute('''
+            SELECT status, COUNT(*) as count FROM reviews
+            WHERE image_id = ? AND status != 'skip'
+            GROUP BY status
+        ''', (row['id'],))
+        stats = {s['status']: s['count'] for s in cursor.fetchall()}
+        
+        # 检查用户是否已审核
+        cursor.execute(
+            "SELECT status FROM reviews WHERE image_id = ? AND user_id = ?",
+            (row['id'], user_id)
+        )
+        user_review = cursor.fetchone()
+        
+        conn.close()
+        
+        return ImageResponse(
+            id=row['id'],
+            path=row['path'],
+            role_id=row['role_id'],
+            role_name=row['role_name'],
+            review_count=sum(stats.values()),
+            pass_count=stats.get('pass', 0),
+            fail_count=stats.get('fail', 0),
+            skip_count=stats.get('skip', 0),
+            is_reviewed_by_user=user_review['status'] if user_review else None
+        )
+    
+    conn.close()
+    return None
+
+def submit_review(image_id: int, user_id: str, status: str):
+    """提交审核结果"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute(
+        "INSERT OR REPLACE INTO reviews (image_id, user_id, status, reviewed_at) VALUES (?, ?, ?, ?)",
+        (image_id, user_id, status, datetime.now().isoformat())
+    )
+    conn.commit()
+    conn.close()
+
+def get_user_reviews(user_id: str) -> List[dict]:
+    """获取用户的审核记录"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT r.*, i.path as image_path
+        FROM reviews r
+        JOIN images i ON r.image_id = i.id
+        WHERE r.user_id = ?
+        ORDER BY r.reviewed_at DESC
+    ''', (user_id,))
+    
+    results = []
+    for row in cursor.fetchall():
+        results.append({
+            'id': row['id'],
+            'image_id': row['image_id'],
+            'image_path': row['image_path'],
+            'status': row['status'],
+            'reviewed_at': row['reviewed_at']
+        })
+    
+    conn.close()
+    return results
+
+def delete_review(review_id: int):
+    """删除审核记录"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM reviews WHERE id = ?", (review_id,))
+    conn.commit()
+    conn.close()
+
+# ============ 统计服务 ============
+
+def get_overall_stats() -> StatsResponse:
+    """获取总体统计"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) as count FROM images")
+    total_images = cursor.fetchone()['count']
+    
+    cursor.execute('''
+        SELECT 
+            COUNT(DISTINCT image_id) as reviewed_images,
+            SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
+            SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count,
+            SUM(CASE WHEN status = 'skip' THEN 1 ELSE 0 END) as skip_count
+        FROM reviews
+    ''')
+    
+    stats = cursor.fetchone()
+    conn.close()
+    
+    return StatsResponse(
+        total_images=total_images,
+        reviewed_images=stats['reviewed_images'] or 0,
+        total_reviews=0,
+        pass_count=stats['pass_count'] or 0,
+        fail_count=stats['fail_count'] or 0,
+        skip_count=stats['skip_count'] or 0,
+        progress_percent=(stats['reviewed_images'] or 0) / total_images * 100 if total_images > 0 else 0
+    )
+
+def get_role_stats(role_id: int) -> Optional[StatsResponse]:
+    """获取角色统计"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute("SELECT COUNT(*) as count FROM images WHERE role_id = ?", (role_id,))
+    total_images = cursor.fetchone()['count']
+    
+    cursor.execute('''
+        SELECT 
+            COUNT(DISTINCT r.image_id) as reviewed_images,
+            SUM(CASE WHEN r.status = 'pass' THEN 1 ELSE 0 END) as pass_count,
+            SUM(CASE WHEN r.status = 'fail' THEN 1 ELSE 0 END) as fail_count,
+            SUM(CASE WHEN r.status = 'skip' THEN 1 ELSE 0 END) as skip_count
+        FROM reviews r
+        JOIN images i ON r.image_id = i.id
+        WHERE i.role_id = ?
+    ''', (role_id,))
+    
+    stats = cursor.fetchone()
+    conn.close()
+    
+    if total_images == 0:
+        return None
+    
+    return StatsResponse(
+        total_images=total_images,
+        reviewed_images=stats['reviewed_images'] or 0,
+total_reviews=0,
+        pass_count=stats['pass_count'] or 0,
+        fail_count=stats['fail_count'] or 0,
+        skip_count=stats['skip_count'] or 0,
+        progress_percent=(stats['reviewed_images'] or 0) / total_images * 100
+    )
+
+def get_image_final_status(image_id: int) -> Optional[str]:
+    """获取图片最终审核状态（需要5人投票，>=3通过视为通过）"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    cursor.execute('''
+        SELECT status FROM reviews
+        WHERE image_id = ? AND status != 'skip'
+    ''', (image_id,))
+    
+    votes = [row['status'] for row in cursor.fetchall()]
+    conn.close()
+    
+    if len(votes) >= 5:
+        pass_count = votes.count('pass')
+        if pass_count >= 3:
+            return 'pass'
+        else:
+            return 'fail'
+    
+    return None
+
+# ============ 设置服务 ============
+
+def get_setting(key: str) -> Optional[str]:
+    """获取单个设置"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT value FROM settings WHERE key = ?", (key,))
+    row = cursor.fetchone()
+    conn.close()
+    return row['value'] if row else None
+
+def save_setting(key: str, value: str):
+    """保存设置"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(
+        "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+        (key, value)
+    )
+    conn.commit()
+    conn.close()
+
+def get_settings() -> dict:
+    """获取所有设置"""
+    return {
+        "title": get_setting("title") or "图片审核系统",
+        "icon": get_setting("icon") or "",
+        "review_rule": get_setting("review_rule") or "",
+        "auto_backup_time": get_setting("auto_backup_time") or "03:00",
+        "auto_backup_enabled": get_setting("auto_backup_enabled") or "true",
+        "backup_retention_days": get_setting("backup_retention_days") or "7"
+    }
+
+def get_settings_all() -> dict:
+    """获取所有设置（后台用）"""
+    return get_settings()
+
+def get_review_rule() -> dict:
+    """获取审核规则"""
+    return {
+        "content": get_setting("review_rule") or "# 暂无审核要求\n\n请在后台配置审核要求。"
+    }
+
+# ============ 备份设置服务 ============
+
+def get_auto_backup_time() -> str:
+    """获取自动备份时间"""
+    return get_setting("auto_backup_time") or "03:00"
+
+def get_auto_backup_enabled() -> bool:
+    """获取自动备份是否启用"""
+    value = get_setting("auto_backup_enabled")
+    return value != "false"  # 默认启用
+
+def get_backup_retention_days() -> int:
+    """获取备份保留天数"""
+    try:
+        return int(get_setting("backup_retention_days") or "7")
+    except (ValueError, TypeError) as e:
+        log_message(f"获取备份保留天数失败: {str(e)}, 使用默认值7")
+        return 7
+
+def get_last_backup_date() -> str:
+    """获取上次备份日期"""
+    return get_setting("last_backup_date") or ""
+
+def set_last_backup_date(date_str: str):
+    """设置上次备份日期"""
+    save_setting("last_backup_date", date_str)

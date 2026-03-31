@@ -235,7 +235,7 @@ function handleFolderSelect(input, targetInputId) {
     if (!files || files.length === 0) {
         return;
     }
-        // 获取第一个文件的路径（webkitRelativePath或parentNode）
+    // Get first file path
         let folderPath = '';
         
         if (files[0].webkitRelativePath) {
@@ -248,26 +248,25 @@ function handleFolderSelect(input, targetInputId) {
             }
         }
         
-        // 尝试从文件路径提取文件夹
+        // Try to extract folder path
         if (!folderPath && files[0].path) {
-            // Electron或类似环境可能有path属性
+            // Electron environment
             const filePath = files[0].path;
             folderPath = filePath.substring(0, filePath.lastIndexOf(files[0].name));
-            // 移除文件名后的末尾斜杠
+            // Remove trailing slashes
             folderPath = folderPath.replace(/[\/\\]+$/, '');
         }
         
-        // 如果无法自动获取，提示用户手动输入
+        // Prompt user if path cannot be obtained
         if (!folderPath) {
-            // 浏览器安全限制：无法直接获取完整路径
+            // Browser security restriction
             alert('已选择 ' + files.length + ' 个文件\n\n由于浏览器安全限制，无法自动获取完整文件夹路径。\n请手动输入完整的文件夹路径。\n\n示例：\n- Windows: C:\\images\\role1\n- Mac/Linux: /home/user/images/role1');
         } else {
             targetInput.value = folderPath;
         }
         
-        // 清空input，允许重复选择同一文件夹
+        // Clear input for reuse
         input.value = '';
-    }
 }
 
 async function loadRoles() {

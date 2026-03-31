@@ -1,6 +1,40 @@
 // ========== 全局状态 ==========
 // 使用sessionStorage存储，页面关闭后自动清除，比localStorage更安全
-let adminToken = sessionStorage.getItem('admin_session') || null;
+
+// ========== 认证辅助函数 ==========
+function ensureAdminToken() {
+    // 每次都从sessionStorage读取最新token
+    const token = sessionStorage.getItem('admin_session');
+    if (!token) {
+        console.error('Admin token is missing.');
+        throw new Error('Admin authentication required.');
+    }
+    return token;
+}
+
+// Helper for admin-authenticated requests
+async function adminFetch(url, options = {}) {
+    const token = ensureAdminToken();
+    
+    const headers = {
+        ...(options.headers || {}),
+        'X-Admin-Password': token
+    };
+    
+    const response = await fetch(url, {
+        ...options,
+        headers
+    });
+    
+    // 集中处理认证失败
+    if (response.status === 401 || response.status === 403) {
+        console.error('Admin authentication failed or expired.');
+        logout();
+        throw new Error('Admin authentication failed.');
+    }
+    
+    return response;
+}
 
 // ========== 初始化 ==========
 document.addEventListener('DOMContentLoaded', () => {
@@ -121,11 +155,7 @@ function switchTab(tabName) {
 // ========== 设置管理 ==========
 async function loadSettings() {
     try {
-        const response = await fetch('/api/admin/settings', {
-            headers: {
-                'X-Admin-Password': adminToken
-            }
-        });
+        const response = await adminFetch('/api/admin/settings');
         const data = await response.json();
         
         document.getElementById('settingTitle').value = data.title || '';
@@ -144,31 +174,28 @@ async function saveSettings() {
     
     try {
         // 保存标题
-        await fetch('/api/admin/settings/title', {
+        await adminFetch('/api/admin/settings/title', {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Admin-Password': adminToken
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: 'title=' + encodeURIComponent(title)
         });
         
         // 保存图标
-        await fetch('/api/admin/settings/icon', {
+        await adminFetch('/api/admin/settings/icon', {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Admin-Password': adminToken
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: 'icon=' + encodeURIComponent(icon)
         });
         
         // 保存审核规则
-        await fetch('/api/admin/settings/review-rule', {
+        await adminFetch('/api/admin/settings/review-rule', {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Admin-Password': adminToken
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: 'content=' + encodeURIComponent(reviewRule)
         });
@@ -190,7 +217,7 @@ async function saveSettings() {
 // ========== 角色管理 ==========
 async function loadRoles() {
     try {
-        const response = await fetch('/api/admin/roles');
+        const response = await adminFetch('/api/admin/roles');
         const roles = await response.json();
         
         const roleList = document.getElementById('roleList');
@@ -245,7 +272,7 @@ let editRoleData = {};
 
 async function showEditRoleModal(roleId) {
     try {
-        const response = await fetch('/api/admin/roles');
+        const response = await adminFetch('/api/admin/roles');
         const roles = await response.json();
         const role = roles.find(r => r.id === roleId);
         
@@ -288,11 +315,8 @@ async function updateRole() {
             formData.append('avatar', avatarFile);
         }
         
-        const response = await fetch(`/api/admin/roles/${roleId}`, {
+        const response = await adminFetch(`/api/admin/roles/${roleId}`, {
             method: 'PUT',
-            headers: {
-                'X-Admin-Password': adminToken
-            },
             body: formData
         });
         
@@ -326,11 +350,8 @@ async function addRole() {
     }
     
     try {
-        const response = await fetch('/api/admin/roles', {
+        const response = await adminFetch('/api/admin/roles', {
             method: 'POST',
-            headers: {
-                'X-Admin-Password': adminToken
-            },
             body: formData
         });
         
@@ -348,11 +369,8 @@ async function addRole() {
 
 async function refreshRole(roleId) {
     try {
-        const response = await fetch(`/api/admin/roles/${roleId}/refresh`, {
-            method: 'POST',
-            headers: {
-                'X-Admin-Password': adminToken
-            }
+        const response = await adminFetch(`/api/admin/roles/${roleId}/refresh`, {
+            method: 'POST'
         });
         
         if (response.ok) {
@@ -367,11 +385,8 @@ async function deleteRole(roleId) {
     if (!confirm('确定要删除此角色吗？')) return;
     
     try {
-        const response = await fetch(`/api/admin/roles/${roleId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Admin-Password': adminToken
-            }
+        const response = await adminFetch(`/api/admin/roles/${roleId}`, {
+            method: 'DELETE'
         });
         
         if (response.ok) {
@@ -387,7 +402,7 @@ async function loadUsers() {
     const sortBy = document.getElementById('userSort').value;
     
     try {
-        const response = await fetch(`/api/admin/users?sort_by=${sortBy}`);
+        const response = await adminFetch(`/api/admin/users?sort_by=${sortBy}`);
         const users = await response.json();
         
         const userList = document.getElementById('userList');
@@ -434,7 +449,7 @@ async function loadUsers() {
 
 async function showUserReviews(userId) {
     try {
-        const response = await fetch(`/api/admin/users/${userId}/reviews`);
+        const response = await adminFetch(`/api/admin/users/${userId}/reviews`);
         const reviews = await response.json();
         
         const reviewsList = document.getElementById('userReviewsList');
@@ -472,11 +487,8 @@ async function deleteReview(reviewId) {
     if (!confirm('确定要删除此审核记录吗？')) return;
     
     try {
-        const response = await fetch(`/api/admin/reviews/${reviewId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-Admin-Password': adminToken
-            }
+        const response = await adminFetch(`/api/admin/reviews/${reviewId}`, {
+            method: 'DELETE'
         });
         
         if (response.ok) {
@@ -491,11 +503,8 @@ async function clearUserReviews(userId) {
     if (!confirm('确定要清除该用户的所有审核结果吗？')) return;
     
     try {
-        const response = await fetch(`/api/admin/users/${userId}/reviews`, {
-            method: 'DELETE',
-            headers: {
-                'X-Admin-Password': adminToken
-            }
+        const response = await adminFetch(`/api/admin/users/${userId}/reviews`, {
+            method: 'DELETE'
         });
         
         if (response.ok) {
@@ -514,11 +523,8 @@ async function toggleBan(userId, ban) {
         const formData = new FormData();
         formData.append('banned', ban);
         
-        const response = await fetch(`/api/admin/users/${userId}/ban`, {
+        const response = await adminFetch(`/api/admin/users/${userId}/ban`, {
             method: 'POST',
-            headers: {
-                'X-Admin-Password': adminToken
-            },
             body: formData
         });
         
@@ -587,11 +593,8 @@ async function exportApproved() {
     btn.disabled = true;
     
     try {
-        const response = await fetch('/api/admin/export', {
-            method: 'GET',
-            headers: {
-                'X-Admin-Password': adminToken
-            }
+        const response = await adminFetch('/api/admin/export', {
+            method: 'GET'
         });
         
         const contentType = response.headers.get('content-type') || '';
@@ -684,11 +687,7 @@ document.getElementById('adminPassword')?.addEventListener('keypress', (e) => {
 
 async function loadBackupSettings() {
     try {
-        const response = await fetch('/api/admin/settings', {
-            headers: {
-                'X-Admin-Password': adminToken
-            }
-        });
+        const response = await adminFetch('/api/admin/settings');
         const data = await response.json();
         
         document.getElementById('settingAutoBackupEnabled').checked = data.auto_backup_enabled !== 'false';
@@ -702,11 +701,10 @@ async function loadBackupSettings() {
 async function saveAutoBackupEnabled() {
     const enabled = document.getElementById('settingAutoBackupEnabled').checked;
     try {
-        await fetch('/api/admin/settings/auto-backup-enabled', {
+        await adminFetch('/api/admin/settings/auto-backup-enabled', {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Admin-Password': adminToken
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: 'enabled=' + enabled
         });
@@ -721,20 +719,18 @@ async function saveBackupSettings() {
     const msgEl = document.getElementById('backupSettingsMsg');
     
     try {
-        await fetch('/api/admin/settings/auto-backup-time', {
+        await adminFetch('/api/admin/settings/auto-backup-time', {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Admin-Password': adminToken
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: 'backup_time=' + encodeURIComponent(backupTime)
         });
         
-        await fetch('/api/admin/settings/backup-retention-days', {
+        await adminFetch('/api/admin/settings/backup-retention-days', {
             method: 'PUT',
             headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Admin-Password': adminToken
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
             body: 'days=' + retentionDays
         });
@@ -756,11 +752,7 @@ async function loadBackups() {
     const backupList = document.getElementById('backupList');
     
     try {
-        const response = await fetch('/api/admin/backup/list', {
-            headers: {
-                'X-Admin-Password': adminToken
-            }
-        });
+        const response = await adminFetch('/api/admin/backup/list');
         const data = await response.json();
         
         if (data.backups.length === 0) {
@@ -795,11 +787,8 @@ async function manualBackup() {
     btn.disabled = true;
     
     try {
-        const response = await fetch('/api/admin/backup/now', {
-            method: 'POST',
-            headers: {
-                'X-Admin-Password': adminToken
-            }
+        const response = await adminFetch('/api/admin/backup/now', {
+            method: 'POST'
         });
         const data = await response.json();
         
@@ -822,11 +811,8 @@ async function restoreBackup(filename) {
     if (!confirm('确定要还原到 "' + filename + '" 吗？\n还原前会先备份当前数据库。')) return;
     
     try {
-        const response = await fetch('/api/admin/backup/restore/' + encodeURIComponent(filename), {
-            method: 'POST',
-            headers: {
-                'X-Admin-Password': adminToken
-            }
+        const response = await adminFetch('/api/admin/backup/restore/' + encodeURIComponent(filename), {
+            method: 'POST'
         });
         const data = await response.json();
         
@@ -845,11 +831,8 @@ async function deleteBackupFile(filename) {
     if (!confirm('确定要删除 "' + filename + '" 吗？')) return;
     
     try {
-        const response = await fetch('/api/admin/backup/' + encodeURIComponent(filename), {
-            method: 'DELETE',
-            headers: {
-                'X-Admin-Password': adminToken
-            }
+        const response = await adminFetch('/api/admin/backup/' + encodeURIComponent(filename), {
+            method: 'DELETE'
         });
         const data = await response.json();
         

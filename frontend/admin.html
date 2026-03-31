@@ -131,12 +131,12 @@
                 <div class="form-group">
                     <label>备份时间</label>
                     <input type="time" id="settingAutoBackupTime" class="input" value="03:00">
-                    <small style="color:#888;font-size:12px;">每天自动执行备份的时间</small>
+                    <small class="hint-text">每天自动执行备份的时间</small>
                 </div>
                 <div class="form-group">
                     <label>备份保留天数</label>
                     <input type="number" id="settingBackupRetentionDays" class="input" value="7" min="1" max="365">
-                    <small style="color:#888;font-size:12px;">超过此天数的备份将自动删除</small>
+                    <small class="hint-text">超过此天数的备份将自动删除</small>
                 </div>
                 <button class="btn btn-confirm" onclick="saveBackupSettings()">保存设置</button>
                 <p id="backupSettingsMsg" style="margin-top:12px;color:#4CAF50;display:none;">保存成功！</p>
@@ -168,12 +168,12 @@
                 <div class="form-group">
                     <label>网页图标（URL或SVG代码）</label>
                     <textarea id="settingIcon" class="input textarea" placeholder="请输入图标URL或SVG代码" rows="3"></textarea>
-                    <small style="color:#888;font-size:12px;">支持URL或直接粘贴SVG代码，如: data:image/svg+xml,&lt;svg...&gt;</small>
+                    <small class="hint-text">支持URL或直接粘贴SVG代码，如: data:image/svg+xml,&lt;svg...&gt;</small>
                 </div>
                 <div class="form-group">
                     <label>审核要求（支持Markdown）</label>
                     <textarea id="settingReviewRule" class="input textarea" placeholder="请输入审核要求，支持Markdown格式" rows="10"></textarea>
-                    <small style="color:#888;font-size:12px;">支持Markdown格式，可使用 # 标题、**粗体**、*斜体*、- 列表 等语法</small>
+                    <small class="hint-text">支持Markdown格式，可使用 # 标题、**粗体**、*斜体*、- 列表 等语法</small>
                 </div>
                 <button class="btn btn-confirm" onclick="saveSettings()">保存设置</button>
                 <p id="settingsMsg" style="margin-top:12px;color:#4CAF50;display:none;">保存成功！</p>
@@ -200,7 +200,7 @@
                         <label class="btn btn-browse" for="roleFolderSelect">选择文件夹</label>
                         <input type="file" id="roleFolderSelect" style="display:none" webkitdirectory multiple onchange="handleFolderSelect(this, 'rolePath')">
                     </div>
-                    <small style="color:#888;font-size:12px;margin-top:4px;display:block;">提示：点击"选择文件夹"可直接选取图片所在目录</small>
+                    <small class="hint-text">提示：点击"选择文件夹"可直接选取图片所在目录</small>
                 </div>
                 <div class="form-group">
                     <label>角色头像（可选）</label>
@@ -231,7 +231,7 @@
                         <label class="btn btn-browse" for="editFolderSelect">选择文件夹</label>
                         <input type="file" id="editFolderSelect" style="display:none" webkitdirectory multiple onchange="handleFolderSelect(this, 'editRolePath')">
                     </div>
-                    <small style="color:#888;font-size:12px;margin-top:4px;display:block;">提示：点击"选择文件夹"可直接选取图片所在目录</small>
+                    <small class="hint-text">提示：点击"选择文件夹"可直接选取图片所在目录</small>
                 </div>
                 <div class="form-group">
                     <label>新头像（可选，不上传则保留原头像）</label>

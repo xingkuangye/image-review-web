@@ -445,16 +445,28 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
     cursor.execute("SELECT COUNT(*) as count FROM images WHERE role_id = ?", (role_id,))
     total_images = cursor.fetchone()['count']
     
-    cursor.execute('''
+    # 使用聚合查询（与 get_overall_stats 保持一致）
+    cursor.execute("""
         SELECT 
-            COUNT(DISTINCT r.image_id) as reviewed_images,
-            SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as pass_count,
-            SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as fail_count,
-            SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as skip_count
-        FROM reviews r
-        JOIN images i ON r.image_id = i.id
-        WHERE i.role_id = ?
-    ''', (REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, role_id))
+            COUNT(DISTINCT image_id) as reviewed_images,
+            SUM(pass_count) as pass_count,
+            SUM(fail_count) as fail_count,
+            SUM(skip_count) as skip_count,
+            SUM(vote_count) as total_reviews,
+            COUNT(DISTINCT CASE WHEN vote_count >= ? AND pass_count >= ? THEN image_id END) as completed_images
+        FROM (
+            SELECT 
+                r.image_id,
+                COUNT(CASE WHEN r.status != ? THEN 1 END) as vote_count,
+                SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as pass_count,
+                SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as fail_count,
+                SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as skip_count
+            FROM reviews r
+            JOIN images i ON r.image_id = i.id
+            WHERE i.role_id = ?
+            GROUP BY r.image_id
+        )
+    """, (REQUIRED_VOTES, MIN_PASS_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, role_id))
     
     stats = cursor.fetchone()
     conn.close()
@@ -462,14 +474,19 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
     if total_images == 0:
         return None
     
+    total_reviews = stats["total_reviews"] or 0
+    completed_images = stats["completed_images"] or 0
+    progress_percent = (total_reviews / (total_images * REQUIRED_VOTES) * 100) if total_images > 0 else 0
+    
     return StatsResponse(
         total_images=total_images,
-        reviewed_images=stats['reviewed_images'] or 0,
-total_reviews=0,
-        pass_count=stats['pass_count'] or 0,
-        fail_count=stats['fail_count'] or 0,
-        skip_count=stats['skip_count'] or 0,
-        progress_percent=(stats['reviewed_images'] or 0) / total_images * 100
+        reviewed_images=stats["reviewed_images"] or 0,
+        total_reviews=total_reviews,
+        pass_count=stats["pass_count"] or 0,
+        fail_count=stats["fail_count"] or 0,
+        skip_count=stats["skip_count"] or 0,
+        progress_percent=round(progress_percent, 2),
+        completed_images=completed_images
     )
 
 def get_image_final_status(image_id: int) -> Optional[str]:

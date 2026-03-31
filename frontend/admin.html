@@ -195,7 +195,12 @@
                 </div>
                 <div class="form-group">
                     <label>图片路径</label>
-                    <input type="text" id="rolePath" class="input" placeholder="请输入图片文件夹路径，如 C:\images\role1">
+                    <div class="path-input-group">
+                        <input type="text" id="rolePath" class="input" placeholder="选择文件夹或手动输入路径，如 C:\images\role1">
+                        <label class="btn btn-browse" for="roleFolderSelect">选择文件夹</label>
+                        <input type="file" id="roleFolderSelect" style="display:none" webkitdirectory multiple onchange="handleFolderSelect(this, 'rolePath')">
+                    </div>
+                    <small style="color:#888;font-size:12px;margin-top:4px;display:block;">提示：点击"选择文件夹"可直接选取图片所在目录</small>
                 </div>
                 <div class="form-group">
                     <label>角色头像（可选）</label>
@@ -221,7 +226,12 @@
                 </div>
                 <div class="form-group">
                     <label>图片路径</label>
-                    <input type="text" id="editRolePath" class="input" placeholder="请输入图片文件夹路径">
+                    <div class="path-input-group">
+                        <input type="text" id="editRolePath" class="input" placeholder="选择文件夹或手动输入路径">
+                        <label class="btn btn-browse" for="editFolderSelect">选择文件夹</label>
+                        <input type="file" id="editFolderSelect" style="display:none" webkitdirectory multiple onchange="handleFolderSelect(this, 'editRolePath')">
+                    </div>
+                    <small style="color:#888;font-size:12px;margin-top:4px;display:block;">提示：点击"选择文件夹"可直接选取图片所在目录</small>
                 </div>
                 <div class="form-group">
                     <label>新头像（可选，不上传则保留原头像）</label>

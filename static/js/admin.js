@@ -215,6 +215,47 @@ async function saveSettings() {
 }
 
 // ========== 角色管理 ==========
+
+// 处理文件夹选择
+function handleFolderSelect(input, targetInputId) {
+    const files = input.files;
+    if (files.length > 0) {
+        // 获取第一个文件的路径（webkitRelativePath或parentNode）
+        let folderPath = '';
+        
+        if (files[0].webkitRelativePath) {
+            // 从webkitRelativePath提取文件夹路径
+            // 例如: "images/role1/pic.jpg" -> "images/role1"
+            const parts = files[0].webkitRelativePath.split('/');
+            if (parts.length > 1) {
+                parts.pop(); // 移除文件名
+                folderPath = parts.join('/');
+            }
+        }
+        
+        // 尝试从文件路径提取文件夹
+        if (!folderPath && files[0].path) {
+            // Electron或类似环境可能有path属性
+            const filePath = files[0].path;
+            folderPath = filePath.substring(0, filePath.lastIndexOf(files[0].name));
+            // 移除文件名后的末尾斜杠
+            folderPath = folderPath.replace(/[\/\\]+$/, '');
+        }
+        
+        // 如果无法自动获取，尝试使用最后一个公共路径前缀
+        if (!folderPath) {
+            // 浏览器安全限制：无法直接获取完整路径
+            // 提示用户复制路径
+            alert('已选择 ' + files.length + ' 个文件\n\n由于浏览器安全限制，无法自动获取完整文件夹路径。\n请手动复制并粘贴完整的文件夹路径到输入框中。\n\n示例：\n- Windows: C:\\images\\role1\n- Mac/Linux: /home/user/images/role1');
+        } else {
+            document.getElementById(targetInputId).value = folderPath;
+        }
+        
+        // 清空input，允许重复选择同一文件夹
+        input.value = '';
+    }
+}
+
 async function loadRoles() {
     try {
         const response = await adminFetch('/api/admin/roles');

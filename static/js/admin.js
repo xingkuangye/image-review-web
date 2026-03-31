@@ -190,7 +190,9 @@ async function saveSettings() {
 // ========== 角色管理 ==========
 async function loadRoles() {
     try {
-        const response = await fetch('/api/admin/roles');
+        const response = await fetch('/api/admin/roles', {
+            headers: { 'X-Admin-Password': adminToken }
+        });
         const roles = await response.json();
         
         const roleList = document.getElementById('roleList');
@@ -245,7 +247,9 @@ let editRoleData = {};
 
 async function showEditRoleModal(roleId) {
     try {
-        const response = await fetch('/api/admin/roles');
+        const response = await fetch('/api/admin/roles', {
+            headers: { 'X-Admin-Password': adminToken }
+        });
         const roles = await response.json();
         const role = roles.find(r => r.id === roleId);
         
@@ -387,7 +391,9 @@ async function loadUsers() {
     const sortBy = document.getElementById('userSort').value;
     
     try {
-        const response = await fetch(`/api/admin/users?sort_by=${sortBy}`);
+        const response = await fetch(`/api/admin/users?sort_by=${sortBy}`, {
+            headers: { 'X-Admin-Password': adminToken }
+        });
         const users = await response.json();
         
         const userList = document.getElementById('userList');
@@ -434,7 +440,9 @@ async function loadUsers() {
 
 async function showUserReviews(userId) {
     try {
-        const response = await fetch(`/api/admin/users/${userId}/reviews`);
+        const response = await fetch(`/api/admin/users/${userId}/reviews`, {
+            headers: { 'X-Admin-Password': adminToken }
+        });
         const reviews = await response.json();
         
         const reviewsList = document.getElementById('userReviewsList');

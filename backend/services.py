@@ -4,6 +4,7 @@ import random
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
+from sqlalchemy import text, select, func
 from backend.database import get_db
 from backend.models import *
 
@@ -102,25 +103,21 @@ def get_all_users(sort_by: str = "id") -> List[UserResponse]:
     
     # 安全：ORDER BY 注入 - 严格白名单验证
     allowed_sort = {
-        "id": "u.id",
-        "total_reviews": "review_count",
-        "last_active": "u.last_active"
+        "id": ("u.id", "u.id"),
+        "total_reviews": ("review_count", "review_count"),
+        "last_active": ("u.last_active", "u.last_active")
     }
-    order_col = allowed_sort.get(sort_by, "u.id")
+    sort_info = allowed_sort.get(sort_by, ("u.id", "u.id"))
+    order_col, order_expr = sort_info[0], sort_info[1]
+    order_clause = f"{order_expr} DESC"
     
-    # 当使用聚合列排序时，需要确保列名明确
-    if order_col == "review_count":
-        order_clause = "review_count DESC"
-    else:
-        order_clause = order_col + " DESC"
-    
-    cursor.execute(f'''
+    cursor.execute(text(f'''
         SELECT u.id, u.nickname, u.created_at, u.last_active, u.is_banned, COUNT(r.id) as review_count
         FROM users u
         LEFT JOIN reviews r ON u.id = r.user_id
         GROUP BY u.id
         ORDER BY {order_clause}
-    ''')
+    '''))
     
     users = []
     for row in cursor.fetchall():
@@ -277,49 +274,50 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     cursor = conn.cursor()
     
     # 获取用户已审核的图片
-    cursor.execute("SELECT image_id FROM reviews WHERE user_id = ?", (user_id,))
+    cursor.execute(text("SELECT image_id FROM reviews WHERE user_id = :user_id"), {"user_id": user_id})
     reviewed_ids = [row['image_id'] for row in cursor.fetchall()]
     
-    # 构建查询 - 使用安全参数化
-    # 构建条件列表，避免 WHERE 重复
+    # 构建查询 - 使用命名参数
     conditions = []
-    params = []
+    params = {"user_id": user_id}
     
     if role_id:
-        conditions.append('i.role_id = ?')
-        params.append(role_id)
+        conditions.append('i.role_id = :role_id')
+        params["role_id"] = role_id
     
     if reviewed_ids:
-        placeholders = ','.join(['?'] * len(reviewed_ids))
+        placeholders = ','.join([f':rev_{i}' for i in range(len(reviewed_ids))])
         conditions.append(f'i.id NOT IN ({placeholders})')
-        params.extend(reviewed_ids)
+        for i, rev_id in enumerate(reviewed_ids):
+            params[f"rev_{i}"] = rev_id
     
     where_clause = ' AND '.join(conditions) if conditions else '1=1'
     
-    cursor.execute(f'''
+    query = text(f'''
         SELECT i.*, r.name as role_name
         FROM images i
         LEFT JOIN roles r ON i.role_id = r.id
         WHERE {where_clause}
         ORDER BY RANDOM()
         LIMIT 1
-    ''', params)
+    ''')
+    cursor.execute(query, params)
     
     row = cursor.fetchone()
     
     if row:
         # 统计审核情况
-        cursor.execute('''
+        cursor.execute(text('''
             SELECT status, COUNT(*) as count FROM reviews
-            WHERE image_id = ? AND status != 'skip'
+            WHERE image_id = :image_id AND status != 'skip'
             GROUP BY status
-        ''', (row['id'],))
+        '''), {"image_id": row['id']})
         stats = {s['status']: s['count'] for s in cursor.fetchall()}
         
         # 检查用户是否已审核
         cursor.execute(
-            "SELECT status FROM reviews WHERE image_id = ? AND user_id = ?",
-            (row['id'], user_id)
+            text("SELECT status FROM reviews WHERE image_id = :image_id AND user_id = :user_id"),
+            {"image_id": row['id'], "user_id": user_id}
         )
         user_review = cursor.fetchone()
         
@@ -393,18 +391,18 @@ def get_overall_stats() -> StatsResponse:
     conn = get_db()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT COUNT(*) as count FROM images")
+    cursor.execute(text("SELECT COUNT(*) as count FROM images"))
     total_images = cursor.fetchone()['count'] or 0
     
     # 使用单个聚合查询获取所有统计数据
-    cursor.execute('''
+    cursor.execute(text('''
         SELECT 
             COUNT(DISTINCT image_id) as reviewed_images,
             SUM(pass_count) as pass_count,
             SUM(fail_count) as fail_count,
             SUM(skip_count) as skip_count,
             SUM(vote_count) as total_reviews,
-            COUNT(DISTINCT CASE WHEN vote_count >= ? AND pass_count >= ? THEN image_id END) as completed_images
+            COUNT(DISTINCT CASE WHEN vote_count >= :required_votes AND pass_count >= :min_pass_votes THEN image_id END) as completed_images
         FROM (
             SELECT 
                 image_id,
@@ -415,7 +413,7 @@ def get_overall_stats() -> StatsResponse:
             FROM reviews
             GROUP BY image_id
         )
-    ''', (REQUIRED_VOTES, MIN_PASS_VOTES))
+    '''), {"required_votes": REQUIRED_VOTES, "min_pass_votes": MIN_PASS_VOTES})
     
     stats = cursor.fetchone()
     conn.close()
@@ -440,10 +438,10 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
     conn = get_db()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT COUNT(*) as count FROM images WHERE role_id = ?", (role_id,))
+    cursor.execute(text("SELECT COUNT(*) as count FROM images WHERE role_id = :role_id"), {"role_id": role_id})
     total_images = cursor.fetchone()['count']
     
-    cursor.execute('''
+    cursor.execute(text('''
         SELECT 
             COUNT(DISTINCT r.image_id) as reviewed_images,
             SUM(CASE WHEN r.status = 'pass' THEN 1 ELSE 0 END) as pass_count,
@@ -451,8 +449,8 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
             SUM(CASE WHEN r.status = 'skip' THEN 1 ELSE 0 END) as skip_count
         FROM reviews r
         JOIN images i ON r.image_id = i.id
-        WHERE i.role_id = ?
-    ''', (role_id,))
+        WHERE i.role_id = :role_id
+    '''), {"role_id": role_id})
     
     stats = cursor.fetchone()
     conn.close()

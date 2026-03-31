@@ -215,6 +215,60 @@ async function saveSettings() {
 }
 
 // ========== 角色管理 ==========
+
+// ========== 文件夹选择功能 ==========
+
+/**
+ * 处理文件夹选择
+ * @param {HTMLInputElement} input - 文件选择input元素
+ * @param {string} targetInputId - 目标输入框ID
+ */
+function handleFolderSelect(input, targetInputId) {
+    const targetInput = document.getElementById(targetInputId);
+    if (!targetInput) {
+        console.error('Target input element not found:', targetInputId);
+        alert('Error: Target input field not found.');
+        return;
+    }
+    
+    const files = input.files;
+    if (!files || files.length === 0) {
+        return;
+    }
+    // Get first file path
+        let folderPath = '';
+        
+        if (files[0].webkitRelativePath) {
+            // 从webkitRelativePath提取文件夹路径
+            // 例如: "images/role1/pic.jpg" -> "images/role1"
+            const parts = files[0].webkitRelativePath.split('/');
+            if (parts.length > 1) {
+                parts.pop(); // 移除文件名
+                folderPath = parts.join('/');
+            }
+        }
+        
+        // Try to extract folder path
+        if (!folderPath && files[0].path) {
+            // Electron environment
+            const filePath = files[0].path;
+            folderPath = filePath.substring(0, filePath.lastIndexOf(files[0].name));
+            // Remove trailing slashes
+            folderPath = folderPath.replace(/[\/\\]+$/, '');
+        }
+        
+        // Prompt user if path cannot be obtained
+        if (!folderPath) {
+            // Browser security restriction
+            alert('已选择 ' + files.length + ' 个文件\n\n由于浏览器安全限制，无法自动获取完整文件夹路径。\n请手动输入完整的文件夹路径。\n\n示例：\n- Windows: C:\\images\\role1\n- Mac/Linux: /home/user/images/role1');
+        } else {
+            targetInput.value = folderPath;
+        }
+        
+        // Clear input for reuse
+        input.value = '';
+}
+
 async function loadRoles() {
     try {
         const response = await adminFetch('/api/admin/roles');

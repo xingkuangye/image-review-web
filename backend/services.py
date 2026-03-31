@@ -272,51 +272,50 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     conn = get_db()
     cursor = conn.cursor()
     
-    # 获取用户已审核的图片
-    cursor.execute(text("SELECT image_id FROM reviews WHERE user_id = :user_id"), {"user_id": user_id})
+    # 获取用户已审核的图片（不含 skip）
+    cursor.execute("SELECT image_id FROM reviews WHERE user_id = ? AND status != 'skip'", (user_id,))
     reviewed_ids = [row['image_id'] for row in cursor.fetchall()]
     
-    # 构建查询 - 使用命名参数
+    # 构建查询参数
     conditions = []
-    params = {"user_id": user_id}
+    params = []
     
     if role_id:
-        conditions.append('i.role_id = :role_id')
-        params["role_id"] = role_id
+        conditions.append('i.role_id = ?')
+        params.append(role_id)
     
     if reviewed_ids:
-        placeholders = ','.join([f':rev_{i}' for i in range(len(reviewed_ids))])
+        placeholders = ','.join(['?'] * len(reviewed_ids))
         conditions.append(f'i.id NOT IN ({placeholders})')
-        for i, rev_id in enumerate(reviewed_ids):
-            params[f"rev_{i}"] = rev_id
+        params.extend(reviewed_ids)
     
     where_clause = ' AND '.join(conditions) if conditions else '1=1'
     
-    query = text(f'''
+    query = f'''
         SELECT i.*, r.name as role_name
         FROM images i
         LEFT JOIN roles r ON i.role_id = r.id
         WHERE {where_clause}
         ORDER BY RANDOM()
         LIMIT 1
-    ''')
+    '''
     cursor.execute(query, params)
     
     row = cursor.fetchone()
     
     if row:
         # 统计审核情况
-        cursor.execute(text('''
+        cursor.execute('''
             SELECT status, COUNT(*) as count FROM reviews
-            WHERE image_id = :image_id AND status != 'skip'
+            WHERE image_id = ? AND status != 'skip'
             GROUP BY status
-        '''), {"image_id": row['id']})
+        ''', (row['id'],))
         stats = {s['status']: s['count'] for s in cursor.fetchall()}
         
         # 检查用户是否已审核
         cursor.execute(
-            text("SELECT status FROM reviews WHERE image_id = :image_id AND user_id = :user_id"),
-            {"image_id": row['id'], "user_id": user_id}
+            "SELECT status FROM reviews WHERE image_id = ? AND user_id = ?",
+            (row['id'], user_id)
         )
         user_review = cursor.fetchone()
         
@@ -394,10 +393,11 @@ def get_overall_stats() -> StatsResponse:
     total_images = cursor.fetchone()['count'] or 0
     
     # 使用单个聚合查询获取所有统计数据
-    # 注意：子查询中 WHERE status != 'skip' 确保 vote_count 不包含跳过评审
+    # vote_count 只计算非 skip 的评审，用于判断完成度
+    # pass_count/fail_count/skip_count 计算所有状态
     cursor.execute('''
         SELECT 
-            COUNT(DISTINCT image_id) as reviewed_images,
+            COUNT(DISTINCT CASE WHEN vote_count > 0 THEN image_id END) as reviewed_images,
             SUM(pass_count) as pass_count,
             SUM(fail_count) as fail_count,
             SUM(skip_count) as skip_count,
@@ -406,12 +406,11 @@ def get_overall_stats() -> StatsResponse:
         FROM (
             SELECT 
                 image_id,
-                COUNT(*) as vote_count,
+                COUNT(CASE WHEN status != 'skip' THEN 1 END) as vote_count,
                 SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
                 SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count,
                 SUM(CASE WHEN status = 'skip' THEN 1 ELSE 0 END) as skip_count
             FROM reviews
-            WHERE status != 'skip'
             GROUP BY image_id
         )
     ''', (REQUIRED_VOTES, MIN_PASS_VOTES))

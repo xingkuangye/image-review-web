@@ -4,7 +4,6 @@ import random
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
-from sqlalchemy import text
 from backend.database import get_db
 from backend.models import *
 
@@ -102,21 +101,21 @@ def get_all_users(sort_by: str = "id") -> List[UserResponse]:
     cursor = conn.cursor()
     
     # 安全：ORDER BY 注入 - 严格白名单验证
+    # order_by 值由白名单控制，确保安全
     allowed_sort = {
-        "id": ("u.id", "u.id"),
-        "total_reviews": ("review_count", "review_count"),
-        "last_active": ("u.last_active", "u.last_active")
+        "id": "u.id",
+        "total_reviews": "review_count",
+        "last_active": "u.last_active"
     }
-    sort_info = allowed_sort.get(sort_by, ("u.id", "u.id"))
-    order_col, order_expr = sort_info[0], sort_info[1]
-    order_clause = f"{order_expr} DESC"
+    order_by = allowed_sort.get(sort_by, "u.id")
     
-    cursor.execute(text('''
+    cursor.execute(f'''
         SELECT u.id, u.nickname, u.created_at, u.last_active, u.is_banned, COUNT(r.id) as review_count
         FROM users u
         LEFT JOIN reviews r ON u.id = r.user_id
         GROUP BY u.id
-        ORDER BY ''' + order_clause)
+        ORDER BY {order_by} DESC
+    ''')
     
     users = []
     for row in cursor.fetchall():
@@ -291,15 +290,15 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     
     where_clause = ' AND '.join(conditions) if conditions else '1=1'
     
-    query = text('''
+    # where_clause 由白名单验证的条件组成，确保安全
+    cursor.execute(f'''
         SELECT i.*, r.name as role_name
         FROM images i
         LEFT JOIN roles r ON i.role_id = r.id
-        WHERE ''' + where_clause + '''
+        WHERE {where_clause}
         ORDER BY RANDOM()
         LIMIT 1
-    ''')
-    cursor.execute(query, params)
+    ''', params)
     
     row = cursor.fetchone()
     

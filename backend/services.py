@@ -13,6 +13,13 @@ REQUIRED_VOTES = 5
 # 通过审核需要的最小通过票数
 MIN_PASS_VOTES = 3
 
+# ============ 审核状态常量 ============
+# 集中定义审核状态，避免多处硬编码
+REVIEW_STATUS_PASS = 'pass'
+REVIEW_STATUS_FAIL = 'fail'
+REVIEW_STATUS_SKIP = 'skip'
+REVIEW_STATUSES = (REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP)
+
 # 管理员密码文件路径
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PASSWORD_FILE = os.path.join(BASE_DIR, 'data', 'admin_password.txt')
@@ -101,22 +108,20 @@ def get_all_users(sort_by: str = "id") -> List[UserResponse]:
     cursor = conn.cursor()
     
     # 安全：ORDER BY 注入 - 严格白名单验证
-    # 使用反引号包裹列名，防止SQL关键字冲突
+    # order_by 值由白名单控制，确保安全
     allowed_sort = {
-        "id": "`id`",
-        "total_reviews": "`review_count`",
-        "last_active": "`last_active`"
+        "id": "u.id",
+        "total_reviews": "review_count",
+        "last_active": "u.last_active"
     }
-    order_col = allowed_sort.get(sort_by)
-    if not order_col:
-        order_col = '"id"'  # 默认使用 id
+    order_by = allowed_sort.get(sort_by, "u.id")
     
     cursor.execute(f'''
         SELECT u.id, u.nickname, u.created_at, u.last_active, u.is_banned, COUNT(r.id) as review_count
         FROM users u
         LEFT JOIN reviews r ON u.id = r.user_id
         GROUP BY u.id
-        ORDER BY {order_col} DESC
+        ORDER BY {order_by} DESC, u.id ASC
     ''')
     
     users = []
@@ -273,30 +278,32 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     conn = get_db()
     cursor = conn.cursor()
     
-    # 获取用户已审核的图片
-    cursor.execute("SELECT image_id FROM reviews WHERE user_id = ?", (user_id,))
-    reviewed_ids = [row['image_id'] for row in cursor.fetchall()]
+    # 使用 NOT EXISTS 替代 NOT IN，利用索引优化
+    params = [user_id, REVIEW_STATUS_SKIP]
     
-    # 构建查询
-    if role_id:
-        where_clause = "WHERE i.role_id = ? AND i.id NOT IN ({})".format(
-            ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '0'
-        )
-        params = [role_id] + reviewed_ids if reviewed_ids else [role_id]
-    else:
-        where_clause = "WHERE i.id NOT IN ({})".format(
-            ','.join(['?'] * len(reviewed_ids)) if reviewed_ids else '0'
-        )
-        params = reviewed_ids if reviewed_ids else []
-    
-    cursor.execute(f'''
+    sql = f'''
         SELECT i.*, r.name as role_name
         FROM images i
         LEFT JOIN roles r ON i.role_id = r.id
-        {where_clause}
-        ORDER BY RANDOM()
-        LIMIT 1
-    ''', params)
+        WHERE NOT EXISTS (
+            SELECT 1 FROM reviews 
+            WHERE image_id = i.id AND user_id = ? AND status != ?
+        )
+    '''
+    
+    if role_id:
+        sql = f'''
+            SELECT i.*, r.name as role_name
+            FROM images i
+            LEFT JOIN roles r ON i.role_id = r.id
+            WHERE i.role_id = ? AND NOT EXISTS (
+                SELECT 1 FROM reviews 
+                WHERE image_id = i.id AND user_id = ? AND status != ?
+            )
+        '''
+        params = [role_id, user_id, REVIEW_STATUS_SKIP]
+    
+    cursor.execute(sql + ' ORDER BY RANDOM() LIMIT 1', params)
     
     row = cursor.fetchone()
     
@@ -304,9 +311,9 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
         # 统计审核情况
         cursor.execute('''
             SELECT status, COUNT(*) as count FROM reviews
-            WHERE image_id = ? AND status != 'skip'
+            WHERE image_id = ? AND status != ?
             GROUP BY status
-        ''', (row['id'],))
+        ''', (row['id'], REVIEW_STATUS_SKIP))
         stats = {s['status']: s['count'] for s in cursor.fetchall()}
         
         # 检查用户是否已审核
@@ -390,24 +397,27 @@ def get_overall_stats() -> StatsResponse:
     total_images = cursor.fetchone()['count'] or 0
     
     # 使用单个聚合查询获取所有统计数据
+    # vote_count 只计算非 skip 的评审，用于判断完成度
+    # pass_count/fail_count/skip_count 计算所有状态
     cursor.execute('''
         SELECT 
-            COUNT(DISTINCT image_id) as reviewed_images,
-            SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count,
-            SUM(CASE WHEN status = 'fail' THEN 1 ELSE 0 END) as fail_count,
-            SUM(CASE WHEN status = 'skip' THEN 1 ELSE 0 END) as skip_count,
-            SUM(CASE WHEN status != 'skip' THEN 1 ELSE 0 END) as total_reviews,
+            COUNT(DISTINCT CASE WHEN vote_count > 0 THEN image_id END) as reviewed_images,
+            SUM(pass_count) as pass_count,
+            SUM(fail_count) as fail_count,
+            SUM(skip_count) as skip_count,
+            SUM(vote_count) as total_reviews,
             COUNT(DISTINCT CASE WHEN vote_count >= ? AND pass_count >= ? THEN image_id END) as completed_images
         FROM (
             SELECT 
                 image_id,
-                COUNT(*) as vote_count,
-                SUM(CASE WHEN status = 'pass' THEN 1 ELSE 0 END) as pass_count
+                COUNT(CASE WHEN status != ? THEN 1 END) as vote_count,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pass_count,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as fail_count,
+                SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as skip_count
             FROM reviews
-            WHERE status != 'skip'
             GROUP BY image_id
         )
-    ''', (REQUIRED_VOTES, MIN_PASS_VOTES))
+    ''', (REQUIRED_VOTES, MIN_PASS_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP))
     
     stats = cursor.fetchone()
     conn.close()
@@ -438,13 +448,13 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
     cursor.execute('''
         SELECT 
             COUNT(DISTINCT r.image_id) as reviewed_images,
-            SUM(CASE WHEN r.status = 'pass' THEN 1 ELSE 0 END) as pass_count,
-            SUM(CASE WHEN r.status = 'fail' THEN 1 ELSE 0 END) as fail_count,
-            SUM(CASE WHEN r.status = 'skip' THEN 1 ELSE 0 END) as skip_count
+            SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as pass_count,
+            SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as fail_count,
+            SUM(CASE WHEN r.status = ? THEN 1 ELSE 0 END) as skip_count
         FROM reviews r
         JOIN images i ON r.image_id = i.id
         WHERE i.role_id = ?
-    ''', (role_id,))
+    ''', (REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, role_id))
     
     stats = cursor.fetchone()
     conn.close()
@@ -469,18 +479,18 @@ def get_image_final_status(image_id: int) -> Optional[str]:
     
     cursor.execute('''
         SELECT status FROM reviews
-        WHERE image_id = ? AND status != 'skip'
-    ''', (image_id,))
+        WHERE image_id = ? AND status != ?
+    ''', (image_id, REVIEW_STATUS_SKIP))
     
     votes = [row['status'] for row in cursor.fetchall()]
     conn.close()
     
-    if len(votes) >= 5:
-        pass_count = votes.count('pass')
-        if pass_count >= 3:
-            return 'pass'
+    if len(votes) >= REQUIRED_VOTES:
+        pass_count = votes.count(REVIEW_STATUS_PASS)
+        if pass_count >= MIN_PASS_VOTES:
+            return REVIEW_STATUS_PASS
         else:
-            return 'fail'
+            return REVIEW_STATUS_FAIL
     
     return None
 

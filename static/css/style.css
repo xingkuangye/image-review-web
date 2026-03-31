@@ -1,0 +1,888 @@
+/* ========== 基础样式 ========== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #1a1a1a;
+    background-image: url('/static/images/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: #fff;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ========== 导航栏 ========== */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background-color: rgba(13, 13, 13, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    height: 60px;
+    position: relative;
+    z-index: 100;
+}
+
+.nav-left, .nav-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.nav-right {
+    justify-content: flex-end;
+}
+
+.nav-center {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.nickname {
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.nickname:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.review-count {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 400px;
+}
+
+.progress-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    width: 0%;
+    transition: width 0.3s;
+}
+
+.progress-detail {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+}
+
+.role-progress {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-left: 12px;
+}
+
+.btn-rule {
+    background-color: rgba(156, 39, 176, 0.9);
+    color: #fff;
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-rule:hover {
+    background-color: rgba(171, 71, 188, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ========== 审核要求内容样式 ========== */
+.rule-content {
+    background-color: rgba(37, 37, 37, 0.8);
+    padding: 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1.8;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.rule-content h1, .rule-content h2, .rule-content h3 {
+    color: #fff;
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.rule-content h1:first-child, .rule-content h2:first-child, .rule-content h3:first-child {
+    margin-top: 0;
+}
+
+.rule-content p {
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.rule-content ul, .rule-content ol {
+    margin-left: 24px;
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.rule-content li {
+    margin-bottom: 6px;
+}
+
+.rule-content code {
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: #8BC34A;
+}
+
+.rule-content blockquote {
+    border-left: 3px solid #9C27B0;
+    padding-left: 16px;
+    margin: 12px 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ========== 主内容区 ========== */
+.main-content {
+    position: relative;
+    height: calc(100vh - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ========== 按钮样式 ========== */
+.btn {
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    font-weight: 500;
+    letter-spacing: 1px;
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+.btn-prev {
+    position: absolute;
+    left: 24px;
+    top: 24px;
+    background-color: rgba(51, 51, 51, 0.9);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 50;
+}
+
+.btn-prev:hover {
+    background-color: rgba(68, 68, 68, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-skip {
+    position: absolute;
+    right: 24px;
+    top: 24px;
+    background-color: rgba(102, 102, 102, 0.9);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 50;
+}
+
+.btn-skip:hover {
+    background-color: rgba(119, 119, 119, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-fail {
+    position: absolute;
+    left: 24px;
+    bottom: 24px;
+    background-color: rgba(211, 47, 47, 0.9);
+    color: #fff;
+    padding: 16px 40px;
+    font-size: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    z-index: 50;
+}
+
+.btn-fail:hover {
+    background-color: rgba(244, 67, 54, 0.95);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 20px rgba(211, 47, 47, 0.4);
+}
+
+.btn-pass {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+    background-color: rgba(56, 142, 60, 0.9);
+    color: #fff;
+    padding: 16px 40px;
+    font-size: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    z-index: 50;
+}
+
+.btn-pass:hover {
+    background-color: rgba(76, 175, 80, 0.95);
+    border-color: rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 20px rgba(56, 142, 60, 0.4);
+}
+
+.btn-download {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(25, 118, 210, 0.9);
+    color: #fff;
+    padding: 12px 28px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 50;
+}
+
+.btn-download:hover {
+    background-color: rgba(33, 150, 243, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+.btn-role-select {
+    position: absolute;
+    right: 24px;
+    bottom: 110px;
+    background-color: rgba(51, 51, 51, 0.9);
+    color: #fff;
+    padding: 10px 20px;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    z-index: 50;
+}
+
+.btn-role-select:hover {
+    background-color: rgba(68, 68, 68, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ========== 图片容器 ========== */
+.image-container {
+    max-width: 75%;
+    max-height: 65vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#reviewImage {
+    max-width: 100%;
+    max-height: 65vh;
+    object-fit: contain;
+    display: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+.loading {
+    position: absolute;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 12px 24px;
+    border-radius: 4px;
+}
+
+.no-image-hint {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 30px;
+    border-radius: 8px;
+}
+
+.no-image-hint p {
+    font-size: 18px;
+    margin-bottom: 16px;
+}
+
+.no-image-hint .sub-hint {
+    font-size: 14px;
+    text-align: left;
+    display: inline-block;
+}
+
+.no-image-hint ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.no-image-hint li {
+    margin: 8px 0;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ========== 模态框 ========== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: rgba(26, 26, 26, 0.95);
+    margin: 60px auto;
+    padding: 0;
+    width: 90%;
+    max-width: 600px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+}
+
+.modal-content.modal-small {
+    max-width: 400px;
+}
+
+.modal-content.modal-large {
+    max-width: 800px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.close {
+    font-size: 24px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.close:hover {
+    color: #fff;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+/* ========== 角色列表 ========== */
+.role-list {
+    margin-top: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.role-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.role-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.role-item:last-child {
+    border-bottom: none;
+}
+
+.role-avatar {
+    width: 48px;
+    height: 48px;
+    background-color: rgba(51, 51, 51, 0.8);
+    margin-right: 16px;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.role-name {
+    flex: 1;
+    font-size: 16px;
+}
+
+.role-stats {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.btn-all-roles {
+    width: 100%;
+    background-color: rgba(51, 51, 51, 0.9);
+    color: #fff;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-all-roles:hover {
+    background-color: rgba(68, 68, 68, 0.95);
+}
+
+/* ========== 输入框 ========== */
+.input {
+    width: 100%;
+    padding: 12px;
+    background-color: rgba(51, 51, 51, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 16px;
+    margin-bottom: 16px;
+}
+
+.input:focus {
+    outline: none;
+    border-color: rgba(25, 118, 210, 0.8);
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.3);
+}
+
+.btn-confirm {
+    width: 100%;
+    background-color: rgba(25, 118, 210, 0.9);
+    color: #fff;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-confirm:hover {
+    background-color: rgba(33, 150, 243, 0.95);
+}
+
+/* ========== 图片详情 ========== */
+.image-stats {
+    display: flex;
+    gap: 24px;
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.text-pass {
+    color: #4CAF50;
+}
+
+.text-fail {
+    color: #f44336;
+}
+
+.my-status {
+    padding: 12px;
+    background-color: rgba(37, 37, 37, 0.8);
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.my-status.pass {
+    color: #4CAF50;
+}
+
+.my-status.fail {
+    color: #f44336;
+}
+
+.my-status.skip {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ========== 滚动条 ========== */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(26, 26, 26, 0.8);
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(68, 68, 68, 0.8);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(85, 85, 85, 0.9);
+}
+
+/* ========== 禁用状态 ========== */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ========== 移动端适配 ========== */
+
+/* 平板竖屏 (768px 以下) */
+@media screen and (max-width: 768px) {
+    /* 导航栏调整 */
+    .navbar {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 60px;
+        padding: 10px 12px;
+        gap: 10px;
+    }
+    
+    .nav-left, .nav-center, .nav-right {
+        flex: none;
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .nav-left {
+        justify-content: flex-start;
+    }
+    
+    .nav-right {
+        justify-content: flex-end;
+    }
+    
+    .user-info {
+        gap: 10px;
+    }
+    
+    .nickname {
+        font-size: 14px;
+        padding: 4px 8px;
+    }
+    
+    .review-count {
+        font-size: 12px;
+    }
+    
+    .progress-container {
+        max-width: 100%;
+    }
+    
+    .progress-label {
+        display: none;
+    }
+    
+    .btn-rule {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    /* 主内容区 */
+    .main-content {
+        height: calc(100vh - 100px);
+        padding: 10px;
+    }
+    
+    /* 图片容器 - 更大显示空间 */
+    .image-container {
+        max-width: 95%;
+        max-height: 55vh;
+        padding: 10px;
+    }
+    
+    #reviewImage {
+        max-height: 55vh;
+    }
+    
+    /* 按钮位置调整 */
+    .btn-prev {
+        left: 10px;
+        top: 10px;
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    .btn-skip {
+        right: 10px;
+        top: 10px;
+        padding: 10px 16px;
+        font-size: 14px;
+    }
+    
+    .btn-fail, .btn-pass {
+        padding: 12px 24px;
+        font-size: 16px;
+        bottom: 16px;
+    }
+    
+    .btn-fail {
+        left: 10px;
+    }
+    
+    .btn-pass {
+        right: 10px;
+    }
+    
+    .btn-download {
+        padding: 10px 20px;
+        font-size: 14px;
+        bottom: 80px;
+    }
+    
+    .btn-role-select {
+        right: 10px;
+        bottom: 140px;
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+    
+    /* 模态框 */
+    .modal-content {
+        width: 95%;
+        margin: 30px auto;
+        max-height: 85vh;
+    }
+    
+    .modal-content.modal-large {
+        max-width: 95%;
+    }
+    
+    .modal-body {
+        padding: 15px;
+    }
+    
+    /* 图片详情统计 */
+    .image-stats {
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 14px;
+    }
+    
+    /* 角色列表 */
+    .role-list {
+        max-height: 300px;
+    }
+    
+    .role-item {
+        padding: 10px;
+    }
+    
+    .role-avatar {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* 手机竖屏 (480px 以下) */
+@media screen and (max-width: 480px) {
+    /* 导航栏进一步简化 */
+    .navbar {
+        padding: 8px 10px;
+    }
+    
+    .progress-detail {
+        font-size: 11px;
+    }
+    
+    .role-progress {
+        display: none;
+    }
+    
+    /* 主内容区 */
+    .main-content {
+        height: calc(100vh - 80px);
+        padding: 10px;
+    }
+    
+    /* 图片容器 */
+    .image-container {
+        max-width: 98%;
+        max-height: 45vh;
+        padding: 8px;
+    }
+    
+    #reviewImage {
+        max-height: 45vh;
+    }
+    
+    /* 按钮 - 更大的触摸区域 */
+    .btn {
+        padding: 14px 20px;
+        min-height: 50px;
+        touch-action: manipulation;
+    }
+    
+    .btn-prev, .btn-skip {
+        padding: 10px 14px;
+        font-size: 13px;
+        top: 5px;
+    }
+    
+    .btn-prev {
+        left: 5px;
+    }
+    
+    .btn-skip {
+        right: 5px;
+    }
+    
+    /* 底部按钮 - 使用top百分比定位 */
+    .btn-fail, .btn-pass {
+        padding: 14px 20px;
+        font-size: 15px;
+        min-width: 120px;
+        top: auto !important;
+        bottom: 10% !important;
+    }
+    
+    .btn-fail {
+        left: 2%;
+    }
+    
+    .btn-pass {
+        right: 2%;
+    }
+    
+    .btn-download {
+        top: auto !important;
+        bottom: 20% !important;
+        padding: 12px 18px;
+    }
+    
+    .btn-role-select {
+        right: 2%;
+        top: auto !important;
+        bottom: 20% !important;
+    }
+    
+    /* 模态框 */
+    .modal-content {
+        width: 98%;
+        margin: 20px auto;
+    }
+    
+    .modal-header h3 {
+        font-size: 16px;
+    }
+    
+    .close {
+        font-size: 20px;
+    }
+    
+    /* 图片详情 */
+    .image-stats {
+        font-size: 13px;
+        gap: 8px;
+    }
+    
+    .my-status {
+        font-size: 13px;
+    }
+}
+
+/* 手机横屏 (横屏模式) */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    /* 导航栏压缩 */
+    .navbar {
+        height: 50px;
+        padding: 5px 12px;
+    }
+    
+    .nav-left, .nav-right {
+        flex: 0;
+    }
+    
+    .nav-center {
+        flex: 1;
+    }
+    
+    /* 主内容区 */
+    .main-content {
+        height: calc(100vh - 50px);
+    }
+    
+    /* 图片更大显示 */
+    .image-container {
+        max-height: calc(100vh - 120px);
+    }
+    
+    #reviewImage {
+        max-height: calc(100vh - 120px);
+    }
+    
+    /* 按钮缩小 */
+    .btn {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+    
+    .btn-fail, .btn-pass {
+        padding: 10px 20px;
+        font-size: 14px;
+    }
+    
+    .btn-download, .btn-role-select {
+        display: none;
+    }
+}
+
+/* 触摸设备优化 */
+@media (hover: none) and (pointer: coarse) {
+    .btn:hover {
+        /* 移除hover效果，提升性能 */
+    }
+    
+    .btn:active {
+        transform: scale(0.95);
+    }
+    
+    .nickname:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .role-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+}

@@ -1,0 +1,669 @@
+import os
+import uuid
+import secrets
+import zipfile
+import shutil
+import asyncio
+import threading
+import time
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Optional
+
+from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+
+from backend.database import init_db, get_db
+from backend.models import *
+from backend.services import *
+
+# 安全常量
+MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+# 初始化 - 支持直接运行和模块运行
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(SCRIPT_DIR)
+UPLOADS_DIR = os.path.join(BASE_DIR, 'uploads')
+STATIC_DIR = os.path.join(BASE_DIR, 'static')
+FRONTEND_DIR = os.path.join(BASE_DIR, 'frontend')
+os.makedirs(UPLOADS_DIR, exist_ok=True)
+
+app = FastAPI(title="图片审核系统")
+
+# CORS配置
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 静态文件
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+# ============ 定时备份调度器 ============
+scheduler_running = True
+
+def run_auto_backup():
+    """执行自动备份"""
+    try:
+        from backend.backup import create_backup, cleanup_old_backups
+        from backend.services import get_backup_retention_days
+        
+        log_message("定时备份开始...")
+        backup_path = create_backup()
+        
+        if backup_path:
+            cleanup_old_backups(get_backup_retention_days())
+            log_message(f"定时备份成功: {backup_path}")
+        else:
+            log_message("定时备份失败")
+    except Exception as e:
+        log_message(f"定时备份异常: {str(e)}")
+
+def backup_scheduler():
+    """备份调度器线程"""
+    global scheduler_running
+    # 从数据库读取上次备份日期（持久化）
+    last_backup_date = get_last_backup_date()
+    
+    while scheduler_running:
+        try:
+            if not get_auto_backup_enabled():
+                time.sleep(60)  # 每分钟检查一次
+                continue
+            
+            now = datetime.now()
+            current_time = now.strftime("%H:%M")
+            target_time = get_auto_backup_time()
+            today_str = now.strftime("%Y-%m-%d")
+            
+            # 检查是否到达备份时间且今天尚未备份
+            if current_time == target_time and last_backup_date != today_str:
+                run_auto_backup()
+                last_backup_date = today_str
+                set_last_backup_date(today_str)  # 持久化到数据库
+                log_message(f"自动备份已执行，下次于 {target_time} 执行")
+        
+        except Exception as e:
+            log_message(f"调度器异常: {str(e)}")
+        
+        time.sleep(30)  # 每30秒检查一次
+
+@app.on_event("startup")
+async def startup():
+    global admin_password, scheduler_running
+    init_db()
+    admin_password = get_admin_password()
+    # 安全：不打印密码到日志和终端
+    print(f"\n{'='*50}")
+    print(f"图片审核系统已启动")
+    print(f"请使用管理员密码登录")
+    print(f"{'='*50}\n")
+    
+    # 启动时检查：如果已过备份时间且今天未备份，立即备份
+    if get_auto_backup_enabled():
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+        target_time = get_auto_backup_time()
+        today_str = now.strftime("%Y-%m-%d")
+        last_backup = get_last_backup_date()
+        
+        if current_time > target_time and last_backup != today_str:
+            log_message(f"启动时检测到今日未备份，立即执行...")
+            run_auto_backup()
+            set_last_backup_date(today_str)
+    
+    # 启动备份调度器
+    scheduler_running = True
+    scheduler_thread = threading.Thread(target=backup_scheduler, daemon=True)
+    scheduler_thread.start()
+
+@app.on_event("shutdown")
+async def shutdown():
+    global scheduler_running
+    scheduler_running = False
+    log_message("自动备份调度器已停止")
+
+# ============ 管理员认证 ============
+
+admin_password = None
+
+def get_or_generate_admin_password():
+    """获取或生成管理员密码（仅在首次访问时生成）"""
+    global admin_password
+    if admin_password is None:
+        admin_password = generate_admin_password()
+    return admin_password
+
+def verify_admin(x_admin_password: str = Header(None)):
+    global admin_password
+    if admin_password is None:
+        admin_password = generate_admin_password()
+    if x_admin_password != admin_password:
+        raise HTTPException(status_code=401, detail="密码错误")
+
+# ============ 前台API ============
+
+@app.get("/api/user/init")
+async def init_user():
+    """初始化用户，返回用户ID"""
+    user_id = str(uuid.uuid4())
+    user = create_or_get_user(user_id)
+    log_message(f"新用户创建: {user_id}")
+    return user
+
+@app.get("/api/user/{user_id}")
+async def get_user(user_id: str):
+    """获取用户信息"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    if user['is_banned']:
+        raise HTTPException(status_code=403, detail="用户已被封禁")
+    
+    update_user_activity(user_id)
+    return create_or_get_user(user_id)
+
+@app.put("/api/user/{user_id}/nickname")
+async def update_nickname(user_id: str, data: UserUpdate):
+    """更新昵称"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_banned FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    if user['is_banned']:
+        raise HTTPException(status_code=403, detail="用户已被封禁")
+    
+    update_user_nickname(user_id, data.nickname)
+    return {"success": True}
+
+@app.get("/api/image/review")
+async def get_review_image(
+    user_id: str,
+    role_id: Optional[int] = None
+):
+    """获取待审核图片"""
+    # 检查用户状态
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT is_banned FROM users WHERE id = ?", (user_id,))
+    user = cursor.fetchone()
+    conn.close()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="用户不存在")
+    
+    if user['is_banned']:
+        raise HTTPException(status_code=403, detail="用户已被封禁")
+    
+    update_user_activity(user_id)
+    image = get_image_for_review(user_id, role_id)
+    
+    if not image:
+        return JSONResponse(content={"message": "暂无待审核图片", "image": None})
+    
+    return {"image": image}
+
+@app.post("/api/image/{image_id}/review")
+async def submit_image_review(
+    image_id: int,
+    user_id: str = Form(...),
+    status: str = Form(...)
+):
+    """提交审核结果"""
+    if status not in ['pass', 'fail', 'skip']:
+        raise HTTPException(status_code=400, detail="无效的审核状态")
+    
+    submit_review(image_id, user_id, status)
+    log_message(f"用户 {user_id} 审核图片 {image_id}: {status}")
+    return {"success": True}
+
+@app.get("/api/image/{image_id}/download")
+async def download_image(image_id: int):
+    """下载图片"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT path FROM images WHERE id = ?", (image_id,))
+    image = cursor.fetchone()
+    conn.close()
+    
+    if not image:
+        raise HTTPException(status_code=404, detail="图片不存在")
+    
+    return FileResponse(image['path'])
+
+@app.get("/api/stats")
+async def get_stats():
+    """获取统计数据"""
+    return get_overall_stats()
+
+@app.get("/api/roles")
+async def get_roles():
+    """获取所有角色"""
+    return get_all_roles()
+
+@app.get("/api/settings")
+async def get_all_settings():
+    """获取所有设置"""
+    return get_settings()
+
+@app.get("/api/settings/review-rule")
+async def get_review_rule_api():
+    """获取审核规则"""
+    return {"content": get_setting("review_rule") or ""}
+
+@app.get("/api/settings/title")
+async def get_title():
+    """获取页面标题"""
+    return {"title": get_setting("title") or "图片审核系统"}
+
+@app.get("/api/settings/icon")
+async def get_icon():
+    """获取页面图标"""
+    return {"icon": get_setting("icon") or ""}
+
+# ============ 后台API ============
+
+@app.get("/api/admin/verify")
+async def verify_admin_password(x_admin_password: str = Header(None)):
+    """验证管理员密码"""
+    global admin_password
+    if admin_password is None:
+        admin_password = generate_admin_password()
+    
+    if x_admin_password != admin_password:
+        return {"valid": False}
+    return {"valid": True}
+
+@app.post("/api/admin/roles")
+async def admin_create_role(
+    name: str = Form(...),
+    image_path: str = Form(...),
+    avatar: UploadFile = File(None),
+    x_admin_password: str = Header(None)
+):
+    """创建角色"""
+    verify_admin(x_admin_password)
+    
+    avatar_path = None
+    if avatar:
+        # 安全：检查文件大小
+        avatar_content = await avatar.read()
+        if len(avatar_content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail="文件过大，最大5MB")
+        
+        # 安全：只提取文件名，防止路径遍历
+        safe_filename = os.path.basename(avatar.filename)
+        filename = f"{uuid.uuid4()}_{safe_filename}"
+        avatar_path = os.path.join(UPLOADS_DIR, filename)
+        with open(avatar_path, 'wb') as f:
+            f.write(avatar_content)
+    
+    role = create_role(name, image_path, avatar_path)
+    log_message(f"创建角色: {name} (路径: {image_path})")
+    return role
+
+@app.get("/api/admin/roles")
+async def admin_get_roles(x_admin_password: str = Header(None)):
+    """获取所有角色"""
+    verify_admin(x_admin_password)
+    return get_all_roles()
+
+@app.post("/api/admin/roles/{role_id}/refresh")
+async def admin_refresh_role(role_id: int, x_admin_password: str = Header(None)):
+    """刷新角色图片"""
+    verify_admin(x_admin_password)
+    refresh_role_images(role_id)
+    log_message(f"刷新角色 {role_id} 图片")
+    return {"success": True}
+
+@app.put("/api/admin/roles/{role_id}")
+async def admin_update_role(
+    role_id: int,
+    name: str = Form(...),
+    image_path: str = Form(...),
+    refresh_images: str = Form(None),
+    avatar: UploadFile = File(None),
+    x_admin_password: str = Header(None)
+):
+    """修改角色"""
+    verify_admin(x_admin_password)
+    
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 获取当前角色信息
+    cursor.execute("SELECT * FROM roles WHERE id = ?", (role_id,))
+    role = cursor.fetchone()
+    
+    if not role:
+        conn.close()
+        raise HTTPException(status_code=404, detail="角色不存在")
+    
+    avatar_path = role['avatar_path']
+    
+    # 处理新头像 - 安全处理文件名和大小
+    if avatar and avatar.filename:
+        avatar_content = await avatar.read()
+        if len(avatar_content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail="文件过大，最大5MB")
+        
+        safe_filename = os.path.basename(avatar.filename)
+        filename = f"{uuid.uuid4()}_{safe_filename}"
+        avatar_path = os.path.join(UPLOADS_DIR, filename)
+        with open(avatar_path, 'wb') as f:
+            f.write(avatar_content)
+    
+    # 更新角色信息
+    cursor.execute(
+        "UPDATE roles SET name = ?, image_path = ?, avatar_path = ? WHERE id = ?",
+        (name, image_path, avatar_path, role_id)
+    )
+    conn.commit()
+    
+    # 如果需要刷新图片
+    if refresh_images and refresh_images.lower() == 'true':
+        refresh_role_images(role_id)
+    
+    conn.close()
+    log_message(f"修改角色 {role_id}: {name} (路径: {image_path})")
+    return {"success": True}
+
+@app.delete("/api/admin/roles/{role_id}")
+async def admin_delete_role(role_id: int, x_admin_password: str = Header(None)):
+    """删除角色"""
+    verify_admin(x_admin_password)
+    delete_role(role_id)
+    log_message(f"删除角色 {role_id}")
+    return {"success": True}
+
+@app.get("/api/admin/users")
+async def admin_get_users(sort_by: str = "id", x_admin_password: str = Header(None)):
+    """获取所有用户"""
+    verify_admin(x_admin_password)
+    return get_all_users(sort_by)
+
+@app.get("/api/admin/users/{user_id}/reviews")
+async def admin_get_user_reviews(user_id: str, x_admin_password: str = Header(None)):
+    """获取用户审核记录"""
+    verify_admin(x_admin_password)
+    return get_user_reviews(user_id)
+
+@app.delete("/api/admin/reviews/{review_id}")
+async def admin_delete_review(review_id: int, x_admin_password: str = Header(None)):
+    """删除审核记录"""
+    verify_admin(x_admin_password)
+    delete_review(review_id)
+    return {"success": True}
+
+@app.delete("/api/admin/users/{user_id}/reviews")
+async def admin_clear_user_reviews(user_id: str, x_admin_password: str = Header(None)):
+    """清除用户审核记录"""
+    verify_admin(x_admin_password)
+    clear_user_reviews(user_id)
+    log_message(f"清除用户 {user_id} 的所有审核记录")
+    return {"success": True}
+
+@app.post("/api/admin/users/{user_id}/ban")
+async def admin_ban_user(user_id: str, banned: bool = Form(True), x_admin_password: str = Header(None)):
+    """封禁/解封用户"""
+    verify_admin(x_admin_password)
+    ban_user(user_id, banned)
+    log_message(f"用户 {user_id} {'封禁' if banned else '解封'}")
+    return {"success": True}
+
+@app.get("/api/admin/stats")
+async def admin_get_stats(x_admin_password: str = Header(None)):
+    """获取后台统计"""
+    verify_admin(x_admin_password)
+    stats = get_overall_stats()
+    roles = get_all_roles()
+    
+    role_stats = []
+    for role in roles:
+        rs = get_role_stats(role.id)
+        if rs:
+            role_stats.append({
+                "role": role,
+                "stats": rs
+            })
+    
+    return {
+        "overall": stats,
+        "roles": role_stats
+    }
+
+@app.get("/api/admin/export")
+async def admin_export_approved(x_admin_password: str = Header(None)):
+    """导出所有审核通过的图片（按角色分文件夹）"""
+    verify_admin(x_admin_password)
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 创建导出目录
+    export_dir = os.path.join(BASE_DIR, 'exports')
+    os.makedirs(export_dir, exist_ok=True)
+    
+    # 创建临时zip文件
+    zip_filename = f"审核通过图片_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+    zip_path = os.path.join(export_dir, zip_filename)
+    
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            # 获取所有角色
+            cursor.execute("SELECT id, name FROM roles")
+            roles = cursor.fetchall()
+            
+            total_count = 0
+            for role in roles:
+                role_id, role_name = role['id'], role['name']
+                
+                # 清理角色名称用于文件夹名
+                safe_folder_name = "".join(c for c in role_name if c.isalnum() or c in (' ', '-', '_')).strip()
+                if not safe_folder_name:
+                    safe_folder_name = f"角色{role_id}"
+                
+                # 获取该角色下审核通过（>=3人投票通过）的图片
+                cursor.execute('''
+                    SELECT i.path, i.id
+                    FROM images i
+                    WHERE i.role_id = ?
+                ''', (role_id,))
+                
+                images = cursor.fetchall()
+                role_pass_count = 0
+                
+                for img in images:
+                    img_path = img['path']
+                    img_id = img['id']
+                    
+                    # 检查审核结果：>=3人通过视为通过
+                    cursor.execute('''
+                        SELECT status, COUNT(*) as count FROM reviews
+                        WHERE image_id = ? AND status != 'skip'
+                        GROUP BY status
+                    ''', (img_id,))
+                    
+                    stats = {row['status']: row['count'] for row in cursor.fetchall()}
+                    pass_count = stats.get('pass', 0)
+                    total_votes = sum(stats.values())
+                    
+                    # 至少5人投票，且通过>=3
+                    if total_votes >= 5 and pass_count >= 3:
+                        if os.path.exists(img_path):
+                            # 添加到zip，保持原文件夹结构
+                            arcname = os.path.join(safe_folder_name, os.path.basename(img_path))
+                            zipf.write(img_path, arcname)
+                            role_pass_count += 1
+                            total_count += 1
+                
+                log_message(f"角色 {role_name}: {role_pass_count} 张图片通过审核")
+        
+        log_message(f"导出完成，共 {total_count} 张图片")
+        
+        if total_count == 0:
+            # 没有图片，返回提示
+            if os.path.exists(zip_path):
+                os.remove(zip_path)
+            return JSONResponse(content={"message": "暂无审核通过的图片", "count": 0})
+        
+        return FileResponse(zip_path, filename=zip_filename, media_type='application/zip')
+        
+    except Exception as e:
+        log_message(f"导出失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        conn.close()
+
+@app.get("/api/admin/settings")
+async def admin_get_settings(x_admin_password: str = Header(None)):
+    """获取所有设置"""
+    verify_admin(x_admin_password)
+    return get_settings_all()
+
+@app.put("/api/admin/settings/title")
+async def admin_update_title(title: str = Form(...), x_admin_password: str = Header(None)):
+    """更新页面标题"""
+    verify_admin(x_admin_password)
+    save_setting("title", title)
+    return {"success": True}
+
+@app.put("/api/admin/settings/icon")
+async def admin_update_icon(icon: str = Form(...), x_admin_password: str = Header(None)):
+    """更新页面图标"""
+    verify_admin(x_admin_password)
+    save_setting("icon", icon)
+    return {"success": True}
+
+@app.put("/api/admin/settings/review-rule")
+async def admin_update_review_rule(content: str = Form(...), x_admin_password: str = Header(None)):
+    """更新审核规则"""
+    verify_admin(x_admin_password)
+    save_setting("review_rule", content)
+    return {"success": True}
+
+@app.put("/api/admin/settings/auto-backup-time")
+async def admin_update_auto_backup_time(backup_time: str = Form(...), x_admin_password: str = Header(None)):
+    """更新自动备份时间"""
+    verify_admin(x_admin_password)
+    save_setting("auto_backup_time", backup_time)
+    log_message(f"更新自动备份时间: {backup_time}")
+    return {"success": True}
+
+@app.put("/api/admin/settings/auto-backup-enabled")
+async def admin_update_auto_backup_enabled(enabled: str = Form(...), x_admin_password: str = Header(None)):
+    """更新自动备份启用状态"""
+    verify_admin(x_admin_password)
+    save_setting("auto_backup_enabled", enabled.lower())
+    log_message(f"更新自动备份启用状态: {enabled}")
+    return {"success": True}
+
+@app.put("/api/admin/settings/backup-retention-days")
+async def admin_update_backup_retention_days(days: str = Form(...), x_admin_password: str = Header(None)):
+    """更新备份保留天数"""
+    verify_admin(x_admin_password)
+    save_setting("backup_retention_days", days)
+    log_message(f"更新备份保留天数: {days}天")
+    return {"success": True}
+
+@app.post("/api/admin/backup/now")
+async def admin_backup_now(x_admin_password: str = Header(None)):
+    """立即执行备份"""
+    verify_admin(x_admin_password)
+    from backend.backup import create_backup, cleanup_old_backups
+    backup_path = create_backup()
+    if backup_path:
+        cleanup_old_backups(get_backup_retention_days())
+        log_message(f"管理员手动触发备份成功")
+        return {"success": True, "message": "备份成功", "path": backup_path}
+    return {"success": False, "message": "备份失败"}
+
+@app.get("/api/admin/backup/list")
+async def admin_list_backups(x_admin_password: str = Header(None)):
+    """列出所有备份"""
+    verify_admin(x_admin_password)
+    from backend.backup import list_backups
+    return {"backups": list_backups()}
+
+@app.post("/api/admin/backup/restore/{filename}")
+async def admin_restore_backup(filename: str, x_admin_password: str = Header(None)):
+    """还原指定备份"""
+    import re
+    from backend.backup import restore_backup
+    
+    # 验证管理员权限
+    verify_admin(x_admin_password)
+    
+    # 白名单验证：只允许字母数字下划线和短横线
+    if not re.match(r'^[\w\-]+\.db$', filename):
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    
+    if restore_backup(filename):
+        return {"success": True, "message": "还原成功"}
+    raise HTTPException(status_code=400, detail="还原失败")
+
+@app.delete("/api/admin/backup/{filename}")
+async def admin_delete_backup(filename: str, x_admin_password: str = Header(None)):
+    """删除指定备份"""
+    import re
+    from backend.backup import delete_backup
+    
+    # 验证管理员权限
+    verify_admin(x_admin_password)
+    
+    # 白名单验证：只允许字母数字下划线和短横线
+    if not re.match(r'^[\w\-]+\.db$', filename):
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    
+    if delete_backup(filename):
+        return {"success": True}
+    raise HTTPException(status_code=400, detail="删除失败")
+
+# ============ 页面路由 ============
+
+@app.get("/")
+async def index():
+    """前台首页"""
+    return FileResponse(os.path.join(FRONTEND_DIR, 'index.html'))
+
+@app.get("/admin")
+async def admin_page():
+    """后台管理页"""
+    return FileResponse(os.path.join(FRONTEND_DIR, 'admin.html'))
+
+@app.get("/uploads/{filename}")
+async def serve_upload(filename: str):
+    """提供上传文件"""
+    import re
+    # 白名单验证：只允许字母数字、点和短横线
+    if not re.match(r'^[\w\.-]+$', filename):
+        raise HTTPException(status_code=400, detail="无效的文件名")
+    
+    safe_path = os.path.join(UPLOADS_DIR, filename)
+    # 验证路径确实在UPLOADS_DIR内
+    if not os.path.realpath(safe_path).startswith(os.path.realpath(UPLOADS_DIR)):
+        raise HTTPException(status_code=403, detail="禁止访问")
+    
+    if not os.path.exists(safe_path):
+        raise HTTPException(status_code=404, detail="文件不存在")
+    
+    return FileResponse(safe_path)
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)

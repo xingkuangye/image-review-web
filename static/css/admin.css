@@ -785,6 +785,30 @@ input[type="time"] {
     color-scheme: dark;
 }
 
+/* ========== 通用提示文本样式 ========== */
+.hint-text {
+    display: block;
+    color: #888;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+/* ========== 文件夹选择按钮 ========== */
+.btn-select-folder {
+    margin-top: 8px;
+    background-color: #444;
+    color: #fff;
+}
+
+.btn-select-folder:hover {
+    background-color: #555;
+}
+
+/* ========== 隐藏元素 ========== */
+.hidden {
+    display: none !important;
+}
+
 /* ========== 移动端响应式适配 ========== */
 @media screen and (max-width: 768px) {
     /* 登录页面 */

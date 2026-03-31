@@ -907,3 +907,73 @@ function formatBytes(bytes) {
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
+
+// ========== 文件夹选择功能 ==========
+
+/**
+ * 处理文件夹选择
+ * @param {Event} event - 文件选择事件
+ * @param {string} targetInputId - 目标输入框ID
+ */
+function handleFolderSelect(event, targetInputId) {
+    const targetInput = document.getElementById(targetInputId);
+    if (!targetInput) {
+        console.error('Target input element not found:', targetInputId);
+        alert('Error: Target input field not found.');
+        return;
+    }
+    
+    const files = event.target.files;
+    if (!files || files.length === 0) {
+        return;
+    }
+    
+    // 检查是否支持 webkitRelativePath
+    if (files[0].webkitRelativePath) {
+        // 适用于支持 webkitRelativePath 的环境
+        const folderPath = files[0].webkitRelativePath.split('/')[0];
+        targetInput.value = folderPath;
+    } else if (files[0].path) {
+        // Electron 环境：直接使用 path 属性
+        const fullPath = files[0].path;
+        const pathParts = fullPath.split(/[/\\]/);
+        if (pathParts.length > 1) {
+            pathParts.pop();
+            targetInput.value = pathParts.join('\\');
+        } else {
+            targetInput.value = fullPath;
+        }
+    } else {
+        // 浏览器环境：无法获取完整路径
+        console.warn('Folder path not available in this environment.');
+        alert('Folder selection may not work in this browser. Please enter the path manually.');
+    }
+    
+    // 清空文件选择
+    event.target.value = '';
+}
+
+/**
+ * 初始化文件夹选择按钮事件
+ */
+function initFolderSelectors() {
+    const folderSelectors = [
+        { btnId: 'selectFolderBtn-add', selectorId: 'folderSelector-add', inputId: 'rolePath' },
+        { btnId: 'selectFolderBtn-edit', selectorId: 'folderSelector-edit', inputId: 'editRolePath' }
+    ];
+    
+    folderSelectors.forEach(({ btnId, selectorId, inputId }) => {
+        const btn = document.getElementById(btnId);
+        const selector = document.getElementById(selectorId);
+        
+        if (btn && selector) {
+            btn.addEventListener('click', () => selector.click());
+            selector.addEventListener('change', (event) => handleFolderSelect(event, inputId));
+        }
+    });
+}
+
+// ========== DOM加载完成后初始化 ==========
+document.addEventListener('DOMContentLoaded', () => {
+    initFolderSelectors();
+});

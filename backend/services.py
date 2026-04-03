@@ -9,7 +9,7 @@ from backend.models import *
 
 # ============ 审核规则常量 ============
 # 一张图片需要的最少投票人数
-REQUIRED_VOTES = 5
+REQUIRED_VOTES = 3
 # 通过审核需要的最小通过票数
 MIN_PASS_VOTES = 3
 
@@ -490,7 +490,11 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
     )
 
 def get_image_final_status(image_id: int) -> Optional[str]:
-    """获取图片最终审核状态（需要5人投票，>=3通过视为通过）"""
+    """获取图片最终审核状态
+    - 3人投票全部通过 = pass
+    - 3人投票有分歧（有通过也有不通过）= disputed
+    - 3人投票全部不通过 = fail
+    """
     conn = get_db()
     cursor = conn.cursor()
     
@@ -503,13 +507,21 @@ def get_image_final_status(image_id: int) -> Optional[str]:
     conn.close()
     
     if len(votes) >= REQUIRED_VOTES:
+        votes = votes[:REQUIRED_VOTES]
         pass_count = votes.count(REVIEW_STATUS_PASS)
-        if pass_count >= MIN_PASS_VOTES:
+        fail_count = votes.count(REVIEW_STATUS_FAIL)
+        
+        if pass_count == REQUIRED_VOTES:
             return REVIEW_STATUS_PASS
-        else:
+        elif fail_count == REQUIRED_VOTES:
             return REVIEW_STATUS_FAIL
+        else:
+            return 'disputed'
     
     return None
+
+
+# ============
 
 # ============ 设置服务 ============
 

@@ -709,7 +709,7 @@ body {
     .btn-fail, .btn-pass {
         padding: 12px 24px;
         font-size: 16px;
-        bottom: 80px;
+        bottom: calc(80px + env(safe-area-inset-bottom));
     }
     
     .btn-fail {

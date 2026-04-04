@@ -1,4 +1,8 @@
 /* ========== 基础样式 ========== */
+:root {
+    --mobile-button-offset: 80px;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -709,7 +713,8 @@ body {
     .btn-fail, .btn-pass {
         padding: 12px 24px;
         font-size: 16px;
-        bottom: calc(80px + env(safe-area-inset-bottom));
+        bottom: var(--mobile-button-offset);
+        bottom: calc(var(--mobile-button-offset) + env(safe-area-inset-bottom));
     }
     
     .btn-fail {

@@ -278,7 +278,7 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     cursor = conn.cursor()
     
     # 使用 NOT EXISTS 替代 NOT IN，利用索引优化
-    params = [user_id, REVIEW_STATUS_SKIP]
+    params = [user_id, REVIEW_STATUS_SKIP, REVIEW_STATUS_SKIP, REQUIRED_VOTES]
     
     sql = f'''
         SELECT i.*, r.name as role_name
@@ -288,8 +288,11 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
             SELECT 1 FROM reviews 
             WHERE image_id = i.id AND user_id = ? AND status != ?
         )
+            AND (
+            SELECT COUNT(*) FROM reviews 
+            WHERE image_id = i.id AND status != ?
+        ) < ?
     '''
-    
     if role_id:
         sql = f'''
             SELECT i.*, r.name as role_name
@@ -299,8 +302,12 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
                 SELECT 1 FROM reviews 
                 WHERE image_id = i.id AND user_id = ? AND status != ?
             )
-        '''
-        params = [role_id, user_id, REVIEW_STATUS_SKIP]
+            AND (
+                SELECT COUNT(*) FROM reviews 
+                WHERE image_id = i.id AND status != ?
+            ) < ?
+            '''
+        params = [role_id, user_id, REVIEW_STATUS_SKIP, REVIEW_STATUS_SKIP, REQUIRED_VOTES]
     
     cursor.execute(sql + ' ORDER BY RANDOM() LIMIT 1', params)
     
@@ -502,24 +509,24 @@ def get_image_final_status(image_id: int) -> Optional[str]:
         SELECT status FROM reviews
         WHERE image_id = ? AND status != ?
         ORDER BY reviewed_at ASC, id ASC
-    ''', (image_id, REVIEW_STATUS_SKIP))
+        LIMIT ?
+    ''', (image_id, REVIEW_STATUS_SKIP, REQUIRED_VOTES))
     
     votes = [row['status'] for row in cursor.fetchall()]
     conn.close()
     
-    if len(votes) >= REQUIRED_VOTES:
-        votes = votes[:REQUIRED_VOTES]
-        pass_count = votes.count(REVIEW_STATUS_PASS)
-        fail_count = votes.count(REVIEW_STATUS_FAIL)
-        
-        if pass_count == REQUIRED_VOTES:
-            return REVIEW_STATUS_PASS
-        elif fail_count == REQUIRED_VOTES:
-            return REVIEW_STATUS_FAIL
-        else:
-            return REVIEW_STATUS_DISPUTED
+    if len(votes) < REQUIRED_VOTES:
+        return None
     
-    return None
+    pass_count = votes.count(REVIEW_STATUS_PASS)
+    fail_count = votes.count(REVIEW_STATUS_FAIL)
+    
+    if pass_count == REQUIRED_VOTES:
+        return REVIEW_STATUS_PASS
+    elif fail_count == REQUIRED_VOTES:
+        return REVIEW_STATUS_FAIL
+    else:
+        return REVIEW_STATUS_DISPUTED
 
 
 # ============

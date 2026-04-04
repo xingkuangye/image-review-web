@@ -8,17 +8,16 @@ from backend.database import get_db
 from backend.models import *
 
 # ============ 审核规则常量 ============
-# 一张图片需要的最少投票人数
+# 一张图片需要的最少投票人数（3人投票制）
 REQUIRED_VOTES = 3
-# 通过审核需要的最小通过票数
-MIN_PASS_VOTES = 3
 
 # ============ 审核状态常量 ============
 # 集中定义审核状态，避免多处硬编码
 REVIEW_STATUS_PASS = 'pass'
 REVIEW_STATUS_FAIL = 'fail'
 REVIEW_STATUS_SKIP = 'skip'
-REVIEW_STATUSES = (REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP)
+REVIEW_STATUS_DISPUTED = 'disputed'  # 有争议（3人意见不一致）
+REVIEW_STATUSES = (REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, REVIEW_STATUS_DISPUTED)
 
 # 管理员密码文件路径
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -417,7 +416,7 @@ def get_overall_stats() -> StatsResponse:
             FROM reviews
             GROUP BY image_id
         )
-    ''', (REQUIRED_VOTES, MIN_PASS_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP))
+    ''', (REQUIRED_VOTES, REQUIRED_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP))
     
     stats = cursor.fetchone()
     conn.close()
@@ -466,7 +465,7 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
             WHERE i.role_id = ?
             GROUP BY r.image_id
         )
-    """, (REQUIRED_VOTES, MIN_PASS_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, role_id))
+    """, (REQUIRED_VOTES, REQUIRED_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, role_id))
     
     stats = cursor.fetchone()
     conn.close()
@@ -501,6 +500,7 @@ def get_image_final_status(image_id: int) -> Optional[str]:
     cursor.execute('''
         SELECT status FROM reviews
         WHERE image_id = ? AND status != ?
+        ORDER BY reviewed_at ASC
     ''', (image_id, REVIEW_STATUS_SKIP))
     
     votes = [row['status'] for row in cursor.fetchall()]
@@ -516,7 +516,7 @@ def get_image_final_status(image_id: int) -> Optional[str]:
         elif fail_count == REQUIRED_VOTES:
             return REVIEW_STATUS_FAIL
         else:
-            return 'disputed'
+            return REVIEW_STATUS_DISPUTED
     
     return None
 

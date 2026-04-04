@@ -492,6 +492,7 @@ def get_image_final_status(image_id: int) -> Optional[str]:
     """获取图片最终审核状态
     - 3人投票全部通过 = pass
     - 3人投票有分歧（有通过也有不通过）= disputed
+    注意：只取前 REQUIRED_VOTES 条投票记录
     - 3人投票全部不通过 = fail
     """
     conn = get_db()
@@ -500,7 +501,7 @@ def get_image_final_status(image_id: int) -> Optional[str]:
     cursor.execute('''
         SELECT status FROM reviews
         WHERE image_id = ? AND status != ?
-        ORDER BY reviewed_at ASC
+        ORDER BY reviewed_at ASC, id ASC
     ''', (image_id, REVIEW_STATUS_SKIP))
     
     votes = [row['status'] for row in cursor.fetchall()]

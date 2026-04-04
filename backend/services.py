@@ -8,17 +8,16 @@ from backend.database import get_db
 from backend.models import *
 
 # ============ 审核规则常量 ============
-# 一张图片需要的最少投票人数
-REQUIRED_VOTES = 5
-# 通过审核需要的最小通过票数
-MIN_PASS_VOTES = 3
+# 一张图片需要的最少投票人数（3人投票制）
+REQUIRED_VOTES = 3
 
 # ============ 审核状态常量 ============
 # 集中定义审核状态，避免多处硬编码
 REVIEW_STATUS_PASS = 'pass'
 REVIEW_STATUS_FAIL = 'fail'
 REVIEW_STATUS_SKIP = 'skip'
-REVIEW_STATUSES = (REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP)
+REVIEW_STATUS_DISPUTED = 'disputed'  # 有争议（3人意见不一致）
+REVIEW_STATUSES = (REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, REVIEW_STATUS_DISPUTED)
 
 # 管理员密码文件路径
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -279,7 +278,7 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
     cursor = conn.cursor()
     
     # 使用 NOT EXISTS 替代 NOT IN，利用索引优化
-    params = [user_id, REVIEW_STATUS_SKIP]
+    params = [user_id, REVIEW_STATUS_SKIP, REVIEW_STATUS_SKIP, REQUIRED_VOTES]
     
     sql = f'''
         SELECT i.*, r.name as role_name
@@ -289,8 +288,11 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
             SELECT 1 FROM reviews 
             WHERE image_id = i.id AND user_id = ? AND status != ?
         )
+            AND (
+            SELECT COUNT(*) FROM reviews 
+            WHERE image_id = i.id AND status != ?
+        ) < ?
     '''
-    
     if role_id:
         sql = f'''
             SELECT i.*, r.name as role_name
@@ -300,8 +302,12 @@ def get_image_for_review(user_id: str, role_id: Optional[int] = None) -> Optiona
                 SELECT 1 FROM reviews 
                 WHERE image_id = i.id AND user_id = ? AND status != ?
             )
-        '''
-        params = [role_id, user_id, REVIEW_STATUS_SKIP]
+            AND (
+                SELECT COUNT(*) FROM reviews 
+                WHERE image_id = i.id AND status != ?
+            ) < ?
+            '''
+        params = [role_id, user_id, REVIEW_STATUS_SKIP, REVIEW_STATUS_SKIP, REQUIRED_VOTES]
     
     cursor.execute(sql + ' ORDER BY RANDOM() LIMIT 1', params)
     
@@ -417,7 +423,7 @@ def get_overall_stats() -> StatsResponse:
             FROM reviews
             GROUP BY image_id
         )
-    ''', (REQUIRED_VOTES, MIN_PASS_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP))
+    ''', (REQUIRED_VOTES, REQUIRED_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP))
     
     stats = cursor.fetchone()
     conn.close()
@@ -466,7 +472,7 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
             WHERE i.role_id = ?
             GROUP BY r.image_id
         )
-    """, (REQUIRED_VOTES, MIN_PASS_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, role_id))
+    """, (REQUIRED_VOTES, REQUIRED_VOTES, REVIEW_STATUS_SKIP, REVIEW_STATUS_PASS, REVIEW_STATUS_FAIL, REVIEW_STATUS_SKIP, role_id))
     
     stats = cursor.fetchone()
     conn.close()
@@ -490,26 +496,40 @@ def get_role_stats(role_id: int) -> Optional[StatsResponse]:
     )
 
 def get_image_final_status(image_id: int) -> Optional[str]:
-    """获取图片最终审核状态（需要5人投票，>=3通过视为通过）"""
+    """获取图片最终审核状态
+    - 3人投票全部通过 = pass
+    - 3人投票有分歧（有通过也有不通过）= disputed
+    注意：只取前 REQUIRED_VOTES 条投票记录
+    - 3人投票全部不通过 = fail
+    """
     conn = get_db()
     cursor = conn.cursor()
     
     cursor.execute('''
         SELECT status FROM reviews
         WHERE image_id = ? AND status != ?
-    ''', (image_id, REVIEW_STATUS_SKIP))
+        ORDER BY reviewed_at ASC, id ASC
+        LIMIT ?
+    ''', (image_id, REVIEW_STATUS_SKIP, REQUIRED_VOTES))
     
     votes = [row['status'] for row in cursor.fetchall()]
     conn.close()
     
-    if len(votes) >= REQUIRED_VOTES:
-        pass_count = votes.count(REVIEW_STATUS_PASS)
-        if pass_count >= MIN_PASS_VOTES:
-            return REVIEW_STATUS_PASS
-        else:
-            return REVIEW_STATUS_FAIL
+    if len(votes) < REQUIRED_VOTES:
+        return None
     
-    return None
+    pass_count = votes.count(REVIEW_STATUS_PASS)
+    fail_count = votes.count(REVIEW_STATUS_FAIL)
+    
+    if pass_count == REQUIRED_VOTES:
+        return REVIEW_STATUS_PASS
+    elif fail_count == REQUIRED_VOTES:
+        return REVIEW_STATUS_FAIL
+    else:
+        return REVIEW_STATUS_DISPUTED
+
+
+# ============
 
 # ============ 设置服务 ============
 

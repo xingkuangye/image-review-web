@@ -308,7 +308,7 @@ async function showRoleModal() {
     const roleList = document.getElementById('roleList');
     
     try {
-        const response = await fetch('/api/admin/roles');
+        const response = await fetch('/api/roles');
         const roles = await response.json();
         
         if (roleList) roleList.innerHTML = '';

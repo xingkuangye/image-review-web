@@ -529,6 +529,39 @@ def get_image_final_status(image_id: int) -> Optional[str]:
         return REVIEW_STATUS_DISPUTED
 
 
+def get_disputed_images() -> List[dict]:
+    """获取所有有争议的图片"""
+    conn = get_db()
+    cursor = conn.cursor()
+    
+    # 找出有分歧的图片（不是全部通过，也不是全部不通过）
+    cursor.execute('''
+        SELECT DISTINCT i.id, i.path, i.role_id, r.name as role_name
+        FROM images i
+        LEFT JOIN roles r ON i.role_id = r.id
+        WHERE EXISTS (
+            SELECT 1 FROM reviews rev
+            WHERE rev.image_id = i.id AND rev.status = 'pass'
+        )
+        AND EXISTS (
+            SELECT 1 FROM reviews rev
+            WHERE rev.image_id = i.id AND rev.status = 'fail'
+        )
+        ORDER BY i.id DESC
+    ''')
+    
+    images = []
+    for row in cursor.fetchall():
+        images.append({
+            'id': row['id'],
+            'path': row['path'],
+            'role_id': row['role_id'],
+            'role_name': row['role_name']
+        })
+    
+    conn.close()
+    return images
+
 # ============
 
 # ============ 设置服务 ============

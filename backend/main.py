@@ -1,6 +1,8 @@
 import os
 import uuid
 import secrets
+import logging
+logger = logging.getLogger(__name__)
 import zipfile
 import shutil
 import asyncio
@@ -286,8 +288,9 @@ async def get_thumbnail(image_id: int):
             output.seek(0)
 
         return StreamingResponse(output, media_type="image/jpeg")
-    except Exception as e:
-        # 如果处理失败，返回原图
+    except Exception:
+        # 记录缩略图处理失败的异常，避免静默失败
+        logger.exception("缩略图生成失败 %s, 返回原图", original_path)
         return FileResponse(original_path)
 
 @app.get("/api/stats")
@@ -299,6 +302,11 @@ async def get_stats():
 async def get_roles():
     """获取所有角色"""
     return get_all_roles()
+
+@app.get("/api/disputed-images")
+async def get_disputed_images():
+    """获取所有有争议的图片"""
+    return get_disputed_images()
 
 @app.get("/api/settings")
 async def get_all_settings():
@@ -572,6 +580,57 @@ async def admin_export_approved(x_admin_password: str = Header(None)):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+@app.get("/api/admin/export-disputed")
+async def admin_export_disputed(x_admin_password: str = Header(None)):
+    """导出所有有争议的图片（按角色分文件夹）"""
+    verify_admin(x_admin_password)
+    
+    # 使用服务函数获取争议图片
+    disputed_images = get_disputed_images()
+    
+    if not disputed_images:
+        return JSONResponse(content={"message": "暂无可导出图片", "count": 0})
+    
+    # 创建导出目录
+    export_dir = os.path.join(BASE_DIR, 'exports')
+    os.makedirs(export_dir, exist_ok=True)
+    
+    zip_filename = f"争议图片_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+    zip_path = os.path.join(export_dir, zip_filename)
+    
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            total_count = 0
+            
+            # 按角色分组
+            role_images = {}
+            for img in disputed_images:
+                role_name = img.get('role_name') or f"角色{img.get('role_id')}"
+                if role_name not in role_images:
+                    role_images[role_name] = []
+                role_images[role_name].append(img)
+            
+            for role_name, images in role_images.items():
+                # 清理角色名称用于文件夹名
+                safe_folder_name = "".join(c for c in role_name if c.isalnum() or c in (' ', '-', '_')).strip()
+                if not safe_folder_name:
+                    safe_folder_name = "未分类"
+                
+                for img in images:
+                    img_path = img['path']
+                    if os.path.exists(img_path):
+                        arcname = os.path.join(safe_folder_name, os.path.basename(img_path))
+                        zipf.write(img_path, arcname)
+                        total_count += 1
+            
+            log_message(f"争议图片导出完成，共 {total_count} 张图片")
+        
+        return FileResponse(zip_path, filename=zip_filename, media_type='application/zip')
+        
+    except Exception as e:
+        log_message(f"导出失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/settings")
 async def admin_get_settings(x_admin_password: str = Header(None)):

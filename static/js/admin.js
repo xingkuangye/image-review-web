@@ -680,6 +680,46 @@ async function exportApproved() {
     }
 }
 
+// ========== 争议图片导出 ==========
+async function exportDisputed() {
+    if (!confirm('确定要导出所有有争议的图片吗？\n争议定义：3人投票意见不一致\n图片将按角色分文件夹打包。')) return;
+    
+    const btn = event.target;
+    btn.textContent = '导出中...';
+    btn.disabled = true;
+    
+    try {
+        const response = await adminFetch('/api/admin/export-disputed', {
+            method: 'GET'
+        });
+        
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.includes('application/json')) {
+            const data = await response.json();
+            alert(data.message || '暂无可导出图片');
+        } else if (contentType.includes('application/zip') || contentType.includes('application/octet-stream')) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '争议图片.zip';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        } else {
+            alert('导出失败，未知响应格式');
+        }
+    } catch (e) {
+        console.error('导出失败:', e);
+        alert('导出失败: ' + e.message);
+    } finally {
+        btn.textContent = '导出争议图片';
+        btn.disabled = false;
+    }
+}
+
 // ========== 工具函数 ==========
 function escapeHtml(text) {
     const div = document.createElement('div');

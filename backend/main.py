@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form, Response
+from fastapi.responses import StreamingResponse
+from PIL import Image
+import io
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +24,7 @@ from backend.services import *
 
 # 安全常量
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+THUMBNAIL_MAX_SIZE = 800  # 缩略图最大边长
 
 # 初始化 - 支持直接运行和模块运行
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -235,17 +239,56 @@ async def submit_image_review(
 
 @app.get("/api/image/{image_id}/download")
 async def download_image(image_id: int):
-    """下载图片"""
+    """下载原图"""
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT path FROM images WHERE id = ?", (image_id,))
     image = cursor.fetchone()
     conn.close()
-    
+
     if not image:
         raise HTTPException(status_code=404, detail="图片不存在")
-    
+
     return FileResponse(image['path'])
+
+
+@app.get("/api/image/{image_id}/thumbnail")
+async def get_thumbnail(image_id: int):
+    """获取压缩缩略图，减少带宽消耗"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT path FROM images WHERE id = ?", (image_id,))
+    image = cursor.fetchone()
+    conn.close()
+
+    if not image:
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    original_path = image['path']
+
+    try:
+        with Image.open(original_path) as img:
+            # 转换为 RGB（处理 PNG 透明通道等）
+            if img.mode in ('RGBA', 'LA', 'P'):
+                img = img.convert('RGB')
+
+            # 计算缩放比例
+            width, height = img.size
+            if width > THUMBNAIL_MAX_SIZE or height > THUMBNAIL_MAX_SIZE:
+                ratio = min(THUMBNAIL_MAX_SIZE / width, THUMBNAIL_MAX_SIZE / height)
+                new_width = int(width * ratio)
+                new_height = int(height * ratio)
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # 保存到内存
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)
+
+        return StreamingResponse(output, media_type="image/jpeg")
+    except Exception as e:
+        # 如果处理失败，返回原图
+        return FileResponse(original_path)
 
 @app.get("/api/stats")
 async def get_stats():

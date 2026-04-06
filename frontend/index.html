@@ -71,6 +71,26 @@
         <button id="downloadBtn" class="btn btn-download" onclick="downloadImage()">下载</button>
     </main>
 
+    <!-- 移动端底部导航栏 -->
+    <nav class="mobile-bottom-nav">
+        <button class="nav-btn nav-prev" onclick="prevImage()">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+            <span>上一张</span>
+        </button>
+        <button class="nav-btn nav-fail" onclick="submitReview('fail')">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+            <span>不通过</span>
+        </button>
+        <button class="nav-btn nav-pass" onclick="submitReview('pass')">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+            <span>通过</span>
+        </button>
+        <button class="nav-btn nav-download" onclick="downloadImage()">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+            <span>下载</span>
+        </button>
+    </nav>
+
     <!-- 角色选择按钮 -->
     <button id="roleSelectBtn" class="btn btn-role-select" onclick="showRoleModal()">选择角色</button>
 

@@ -303,9 +303,10 @@ async def get_roles():
     """获取所有角色"""
     return get_all_roles()
 
-@app.get("/api/disputed-images")
-async def get_disputed_images():
-    """获取所有有争议的图片"""
+@app.get("/api/admin/disputed-images")
+async def admin_get_disputed_images(x_admin_password: str = Header(None)):
+    """获取所有有争议的图片（需要管理员权限）"""
+    verify_admin(x_admin_password)
     return get_disputed_images()
 
 @app.get("/api/settings")

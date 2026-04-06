@@ -521,6 +521,23 @@ async def admin_export_approved(x_admin_password: str = Header(None)):
             cursor.execute("SELECT id, name FROM roles")
             roles = cursor.fetchall()
             
+            # 批量获取所有图片及其投票状态，避免N+1查询
+            cursor.execute('''
+                SELECT i.id, i.path, i.role_id
+                FROM images i
+            ''')
+            all_images = cursor.fetchall()
+            
+            # 批量获取所有图片的最终状态
+            image_statuses = {}
+            for img in all_images:
+                try:
+                    status = get_image_final_status(img['id'])
+                    image_statuses[img['id']] = status
+                except Exception as e:
+                    logger.warning(f"获取图片 {img['id']} 状态失败: {e}")
+                    image_statuses[img['id']] = None
+            
             total_count = 0
             for role in roles:
                 role_id, role_name = role['id'], role['name']
@@ -530,24 +547,15 @@ async def admin_export_approved(x_admin_password: str = Header(None)):
                 if not safe_folder_name:
                     safe_folder_name = f"角色{role_id}"
                 
-                # 获取该角色下审核通过（>=3人投票通过）的图片
-                cursor.execute('''
-                    SELECT i.path, i.id
-                    FROM images i
-                    WHERE i.role_id = ?
-                ''', (role_id,))
-                
-                images = cursor.fetchall()
+                role_images = [img for img in all_images if img['role_id'] == role_id]
                 role_pass_count = 0
                 
-                for img in images:
+                for img in role_images:
                     img_path = img['path']
                     img_id = img['id']
+                    final_status = image_statuses.get(img_id)
                     
-                    # 使用服务函数判断最终状态（3人投票全部通过=pass）
-                    final_status = get_image_final_status(img_id)
-                    
-                    # 只有全部通过的图片才导出（None表示投票未完成，不导出）
+                    # 只有全部通过的图片才导出（None表示投票未完成或查询失败，不导出）
                     if final_status == 'pass':
                         if os.path.exists(img_path):
                             # 添加到zip，保持原文件夹结构

@@ -1,6 +1,8 @@
 import os
 import uuid
 import secrets
+import logging
+logger = logging.getLogger(__name__)
 import zipfile
 import shutil
 import asyncio
@@ -11,6 +13,9 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, Header, UploadFile, File, Form, Response
+from fastapi.responses import StreamingResponse
+from PIL import Image
+import io
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,6 +26,7 @@ from backend.services import *
 
 # 安全常量
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+THUMBNAIL_MAX_SIZE = 800  # 缩略图最大边长
 
 # 初始化 - 支持直接运行和模块运行
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -235,17 +241,57 @@ async def submit_image_review(
 
 @app.get("/api/image/{image_id}/download")
 async def download_image(image_id: int):
-    """下载图片"""
+    """下载原图"""
     conn = get_db()
     cursor = conn.cursor()
     cursor.execute("SELECT path FROM images WHERE id = ?", (image_id,))
     image = cursor.fetchone()
     conn.close()
-    
+
     if not image:
         raise HTTPException(status_code=404, detail="图片不存在")
-    
+
     return FileResponse(image['path'])
+
+
+@app.get("/api/image/{image_id}/thumbnail")
+async def get_thumbnail(image_id: int):
+    """获取压缩缩略图，减少带宽消耗"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT path FROM images WHERE id = ?", (image_id,))
+    image = cursor.fetchone()
+    conn.close()
+
+    if not image:
+        raise HTTPException(status_code=404, detail="图片不存在")
+
+    original_path = image['path']
+
+    try:
+        with Image.open(original_path) as img:
+            # 转换为 RGB（处理 PNG 透明通道等）
+            if img.mode in ('RGBA', 'LA', 'P'):
+                img = img.convert('RGB')
+
+            # 计算缩放比例
+            width, height = img.size
+            if width > THUMBNAIL_MAX_SIZE or height > THUMBNAIL_MAX_SIZE:
+                ratio = min(THUMBNAIL_MAX_SIZE / width, THUMBNAIL_MAX_SIZE / height)
+                new_width = int(width * ratio)
+                new_height = int(height * ratio)
+                img = img.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+            # 保存到内存
+            output = io.BytesIO()
+            img.save(output, format='JPEG', quality=85, optimize=True)
+            output.seek(0)
+
+        return StreamingResponse(output, media_type="image/jpeg")
+    except Exception:
+        # 记录缩略图处理失败的异常，避免静默失败
+        logger.exception("缩略图生成失败 %s, 返回原图", original_path)
+        return FileResponse(original_path)
 
 @app.get("/api/stats")
 async def get_stats():
@@ -256,6 +302,12 @@ async def get_stats():
 async def get_roles():
     """获取所有角色"""
     return get_all_roles()
+
+@app.get("/api/admin/disputed-images")
+async def admin_get_disputed_images(x_admin_password: str = Header(None)):
+    """获取所有有争议的图片（需要管理员权限）"""
+    verify_admin(x_admin_password)
+    return get_disputed_images()
 
 @app.get("/api/settings")
 async def get_all_settings():
@@ -529,6 +581,57 @@ async def admin_export_approved(x_admin_password: str = Header(None)):
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         conn.close()
+
+@app.get("/api/admin/export-disputed")
+async def admin_export_disputed(x_admin_password: str = Header(None)):
+    """导出所有有争议的图片（按角色分文件夹）"""
+    verify_admin(x_admin_password)
+    
+    # 使用服务函数获取争议图片
+    disputed_images = get_disputed_images()
+    
+    if not disputed_images:
+        return JSONResponse(content={"message": "暂无可导出图片", "count": 0})
+    
+    # 创建导出目录
+    export_dir = os.path.join(BASE_DIR, 'exports')
+    os.makedirs(export_dir, exist_ok=True)
+    
+    zip_filename = f"争议图片_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
+    zip_path = os.path.join(export_dir, zip_filename)
+    
+    try:
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            total_count = 0
+            
+            # 按角色分组
+            role_images = {}
+            for img in disputed_images:
+                role_name = img.get('role_name') or f"角色{img.get('role_id')}"
+                if role_name not in role_images:
+                    role_images[role_name] = []
+                role_images[role_name].append(img)
+            
+            for role_name, images in role_images.items():
+                # 清理角色名称用于文件夹名
+                safe_folder_name = "".join(c for c in role_name if c.isalnum() or c in (' ', '-', '_')).strip()
+                if not safe_folder_name:
+                    safe_folder_name = "未分类"
+                
+                for img in images:
+                    img_path = img['path']
+                    if os.path.exists(img_path):
+                        arcname = os.path.join(safe_folder_name, os.path.basename(img_path))
+                        zipf.write(img_path, arcname)
+                        total_count += 1
+            
+            log_message(f"争议图片导出完成，共 {total_count} 张图片")
+        
+        return FileResponse(zip_path, filename=zip_filename, media_type='application/zip')
+        
+    except Exception as e:
+        log_message(f"导出失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/admin/settings")
 async def admin_get_settings(x_admin_password: str = Header(None)):

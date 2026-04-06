@@ -1,4 +1,4 @@
-// ========== 全局状态 ==========
+﻿// ========== 全局状态 ==========
 let currentUser = null;
 let currentImage = null;
 let currentRoleId = null;
@@ -63,23 +63,11 @@ async function loadStats() {
         const reviewedCount = document.getElementById('reviewedCount');
         const totalCount = document.getElementById('totalCount');
         const userReviewCount = document.getElementById('userReviewCount');
-        const completeCount = document.getElementById('completeCount');
-        const totalImages = document.getElementById('totalImages');
         
-        // 使用后端提供的进度百分比（单数据源原则）
-        const voteProgress = typeof stats.progress_percent === 'number' ? stats.progress_percent : 0;
-        const totalImageCount = stats.total_images || 0;
-        const requiredVotes = totalImageCount * 5;  // 每张图需要5票
-        const totalVotes = stats.total_reviews || 0;
-        
-        if (progressPercent) progressPercent.textContent = voteProgress.toFixed(1);
-        if (progressFill) progressFill.style.width = voteProgress + '%';
-        if (reviewedCount) reviewedCount.textContent = totalVotes;
-        if (totalCount) totalCount.textContent = requiredVotes;
-        
-        // 显示完成审核的图片数（获得5票且≥3通过）
-        if (completeCount) completeCount.textContent = stats.completed_images || 0;
-        if (totalImages) totalImages.textContent = totalImageCount;
+        if (progressPercent) progressPercent.textContent = (stats.progress_percent || 0).toFixed(1);
+        if (progressFill) progressFill.style.width = (stats.progress_percent || 0) + '%';
+        if (reviewedCount) reviewedCount.textContent = stats.reviewed_images || 0;
+        if (totalCount) totalCount.textContent = stats.total_images || 0;
         
         // 更新用户审核数
         if (currentUser) {

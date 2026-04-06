@@ -547,7 +547,7 @@ async def admin_export_approved(x_admin_password: str = Header(None)):
                     # 使用服务函数判断最终状态（3人投票全部通过=pass）
                     final_status = get_image_final_status(img_id)
                     
-                    # 只有全部通过的图片才导出
+                    # 只有全部通过的图片才导出（None表示投票未完成，不导出）
                     if final_status == 'pass':
                         if os.path.exists(img_path):
                             # 添加到zip，保持原文件夹结构

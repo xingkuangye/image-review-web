@@ -544,19 +544,11 @@ async def admin_export_approved(x_admin_password: str = Header(None)):
                     img_path = img['path']
                     img_id = img['id']
                     
-                    # 检查审核结果：>=3人通过视为通过
-                    cursor.execute('''
-                        SELECT status, COUNT(*) as count FROM reviews
-                        WHERE image_id = ? AND status != 'skip'
-                        GROUP BY status
-                    ''', (img_id,))
+                    # 使用服务函数判断最终状态（3人投票全部通过=pass）
+                    final_status = get_image_final_status(img_id)
                     
-                    stats = {row['status']: row['count'] for row in cursor.fetchall()}
-                    pass_count = stats.get('pass', 0)
-                    total_votes = sum(stats.values())
-                    
-                    # 至少5人投票，且通过>=3
-                    if total_votes >= 5 and pass_count >= 3:
+                    # 只有全部通过的图片才导出
+                    if final_status == 'pass':
                         if os.path.exists(img_path):
                             # 添加到zip，保持原文件夹结构
                             arcname = os.path.join(safe_folder_name, os.path.basename(img_path))

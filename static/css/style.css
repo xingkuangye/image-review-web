@@ -1,0 +1,1104 @@
+/* ========== Loading Animations ========== */
+
+/* Skeleton loading animation */
+@keyframes skeleton-pulse {
+    0%, 100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, 
+        rgba(60, 60, 60, 0.4) 0%, 
+        rgba(80, 80, 80, 0.6) 50%, 
+        rgba(60, 60, 60, 0.4) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-pulse 1.5s ease-in-out infinite;
+    border-radius: 8px;
+}
+
+/* Loading spinner */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: rgba(255, 255, 255, 0.8);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+/* Image fade-in animation */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.image-fade-in {
+    animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Shadow transition */
+.image-container {
+    transition: box-shadow 0.3s ease-out;
+}
+
+/* Button ripple effect */
+@keyframes ripple {
+    0% {
+        transform: scale(0);
+        opacity: 0.5;
+    }
+    100% {
+        transform: scale(4);
+        opacity: 0;
+    }
+}
+
+.btn-ripple {
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-ripple::after {
+    content: '';
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+    background-image: radial-gradient(circle, rgba(255,255,255,0.3) 10%, transparent 10%);
+    background-repeat: no-repeat;
+    background-position: center;
+    transform: scale(0);
+    opacity: 0;
+}
+
+.btn-ripple:active::after {
+    animation: ripple 0.6s ease-out;
+}
+
+/* Progress bar pulse */
+@keyframes progress-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 4px rgba(76, 175, 80, 0);
+    }
+}
+
+.progress-fill {
+    transition: width 0.5s ease-out, box-shadow 0.3s ease;
+}
+
+.progress-fill.active {
+    animation: progress-pulse 2s ease-in-out infinite;
+}
+
+/* ========== Base Styles ========== */
+:root {
+    --mobile-button-offset: 140px;
+    --mobile-bottom-nav-height: 70px;  /* bottom nav height for mobile */
+    --mobile-header-height: 60px;      /* header/navbar height */
+    --image-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);  /* Shared shadow for image containers */
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: #1a1a1a;
+    background-image: url('/static/images/background.png');
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    color: #fff;
+    height: 100vh;
+    overflow: hidden;
+}
+
+/* ========== Navbar ========== */
+.navbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background-color: rgba(13, 13, 13, 0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    height: 60px;
+    position: relative;
+    z-index: 100;
+}
+
+.nav-left, .nav-right {
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.nav-right {
+    justify-content: flex-end;
+}
+
+.nav-center {
+    flex: 2;
+    display: flex;
+    justify-content: center;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.nickname {
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    padding: 6px 12px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.nickname:hover {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.review-count {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.progress-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 300px;
+}
+
+.complete-container {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(76, 175, 80, 0.15);
+    padding: 6px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(76, 175, 80, 0.3);
+    margin-left: 16px;
+}
+
+.complete-label {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.complete-count {
+    color: #4CAF50;
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.complete-total {
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.progress-label {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+}
+
+.progress-bar {
+    flex: 1;
+    height: 8px;
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4CAF50, #8BC34A);
+    width: 0%;
+    transition: width 0.3s;
+}
+
+.progress-detail {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+    white-space: nowrap;
+}
+
+.role-progress {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.7);
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 4px 10px;
+    border-radius: 4px;
+    margin-left: 12px;
+}
+
+.btn-rule {
+    background-color: rgba(156, 39, 176, 0.9);
+    color: #fff;
+    padding: 8px 16px;
+    font-size: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-rule:hover {
+    background-color: rgba(171, 71, 188, 0.95);
+    border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ========== Review Rule Content ========== */
+.rule-content {
+    background-color: rgba(37, 37, 37, 0.8);
+    padding: 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    line-height: 1.8;
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.rule-content h1, .rule-content h2, .rule-content h3 {
+    color: #fff;
+    margin-top: 16px;
+    margin-bottom: 8px;
+}
+
+.rule-content h1:first-child, .rule-content h2:first-child, .rule-content h3:first-child {
+    margin-top: 0;
+}
+
+.rule-content p {
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.rule-content ul, .rule-content ol {
+    margin-left: 24px;
+    margin-bottom: 12px;
+    color: rgba(255, 255, 255, 0.85);
+}
+
+.rule-content li {
+    margin-bottom: 6px;
+}
+
+.rule-content code {
+    background-color: rgba(0, 0, 0, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    color: #8BC34A;
+}
+
+.rule-content blockquote {
+    border-left: 3px solid #9C27B0;
+    padding-left: 16px;
+    margin: 12px 0;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+/* ========== Main Content ========== */
+.main-content {
+    position: relative;
+    height: calc(100vh - 60px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* ========== Button Styles ========== */
+.btn {
+    border: none;
+    padding: 12px 24px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+    font-weight: 500;
+    letter-spacing: 1px;
+    border-radius: 12px;
+    background-color: rgba(60, 60, 60, 0.8);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn:active {
+    transform: scale(0.95);
+}
+
+.btn-prev {
+    position: absolute;
+    left: 24px;
+    top: 24px;
+    background-color: rgba(80, 80, 80, 0.85);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    z-index: 50;
+    border-radius: 12px;
+}
+
+.btn-prev:hover {
+    background-color: rgba(100, 100, 100, 0.9);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-skip {
+    position: absolute;
+    right: 24px;
+    top: 24px;
+    background-color: rgba(90, 90, 90, 0.85);
+    color: #e0e0e0;
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    z-index: 50;
+    border-radius: 12px;
+}
+
+.btn-skip:hover {
+    background-color: rgba(110, 110, 110, 0.9);
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+.btn-fail {
+    position: absolute;
+    left: 24px;
+    bottom: 24px;
+    background-color: rgba(180, 50, 50, 0.85);
+    color: #f5f5f5;
+    padding: 16px 40px;
+    font-size: 18px;
+    border: 1px solid rgba(255, 80, 80, 0.3);
+    z-index: 50;
+    border-radius: 16px;
+}
+
+.btn-fail:hover {
+    background-color: rgba(200, 60, 60, 0.9);
+    border-color: rgba(255, 100, 100, 0.4);
+    box-shadow: 0 4px 20px rgba(200, 50, 50, 0.4);
+}
+
+.btn-pass {
+    position: absolute;
+    right: 24px;
+    bottom: 24px;
+    background-color: rgba(50, 140, 60, 0.85);
+    color: #f5f5f5;
+    padding: 16px 40px;
+    font-size: 18px;
+    border: 1px solid rgba(80, 200, 100, 0.3);
+    z-index: 50;
+    border-radius: 16px;
+}
+
+.btn-pass:hover {
+    background-color: rgba(60, 160, 70, 0.9);
+    border-color: rgba(100, 220, 120, 0.4);
+    box-shadow: 0 4px 20px rgba(60, 160, 70, 0.4);
+}
+
+.btn-download {
+    position: absolute;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(40, 100, 180, 0.85);
+    color: #e8e8e8;
+    padding: 12px 28px;
+    border: 1px solid rgba(80, 140, 220, 0.25);
+    z-index: 50;
+    border-radius: 12px;
+}
+
+.btn-download:hover {
+    background-color: rgba(50, 120, 200, 0.9);
+    border-color: rgba(100, 160, 240, 0.35);
+}
+
+.btn-role-select {
+    position: absolute;
+    right: 24px;
+    bottom: 110px;
+    background-color: rgba(75, 60, 90, 0.85);
+    color: #e0e0e0;
+    padding: 10px 20px;
+    font-size: 14px;
+    border: 1px solid rgba(150, 120, 180, 0.25);
+    z-index: 50;
+    border-radius: 12px;
+}
+
+.btn-role-select:hover {
+    background-color: rgba(95, 80, 110, 0.9);
+    border-color: rgba(170, 140, 200, 0.35);
+}
+
+/* ========== Image Container ========== */
+.image-container {
+    max-width: 75%;
+    max-height: 65vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    /* 强制移除阴影，覆盖内联样�?*/
+    
+    /* Shadow transition for smooth color/size changes */
+    transition: box-shadow 0.3s ease-out;
+}
+
+/* Image skeleton placeholder */
+.image-skeleton {
+    position: absolute;
+    max-width: 75%;
+    max-height: 65vh;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+}
+
+.image-skeleton .skeleton {
+    width: 100%;
+    height: 100%;
+    border-radius: 8px;
+}
+
+#reviewImage {
+    max-width: 100%;
+    max-height: 65vh;
+    object-fit: contain;
+    display: none;
+}
+
+
+
+.loading {
+    position: absolute;
+    font-size: 18px;
+    color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 12px 24px;
+    border-radius: 4px;
+}
+
+.no-image-hint {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.8);
+    background-color: rgba(0, 0, 0, 0.5);
+    padding: 30px;
+    border-radius: 8px;
+}
+
+.no-image-hint p {
+    font-size: 18px;
+    margin-bottom: 16px;
+}
+
+.no-image-hint .sub-hint {
+    font-size: 14px;
+    text-align: left;
+    display: inline-block;
+}
+
+.no-image-hint ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+.no-image-hint li {
+    margin: 8px 0;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ========== Modal ========== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: rgba(35, 35, 40, 0.95);
+    margin: 60px auto;
+    padding: 0;
+    width: 90%;
+    max-width: 600px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(12px);
+    border-radius: 16px;
+}
+
+.modal-content.modal-small {
+    max-width: 400px;
+}
+
+.modal-content.modal-large {
+    max-width: 800px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 500;
+}
+
+.close {
+    font-size: 24px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.close:hover {
+    color: #fff;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+/* ========== Role List ========== */
+.role-list {
+    margin-top: 16px;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.role-item {
+    display: flex;
+    align-items: center;
+    padding: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.role-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.role-item:last-child {
+    border-bottom: none;
+}
+
+.role-avatar {
+    width: 48px;
+    height: 48px;
+    background-color: rgba(51, 51, 51, 0.8);
+    margin-right: 16px;
+    object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.role-name {
+    flex: 1;
+    font-size: 16px;
+}
+
+.role-stats {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.btn-all-roles {
+    width: 100%;
+    background-color: rgba(51, 51, 51, 0.9);
+    color: #fff;
+    padding: 12px;
+    margin-bottom: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-all-roles:hover {
+    background-color: rgba(68, 68, 68, 0.95);
+}
+
+/* ========== Input ========== */
+.input {
+    width: 100%;
+    padding: 12px;
+    background-color: rgba(51, 51, 51, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    color: #fff;
+    font-size: 16px;
+    margin-bottom: 16px;
+}
+
+.input:focus {
+    outline: none;
+    border-color: rgba(25, 118, 210, 0.8);
+    box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.3);
+}
+
+.btn-confirm {
+    width: 100%;
+    background-color: rgba(25, 118, 210, 0.9);
+    color: #fff;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-confirm:hover {
+    background-color: rgba(33, 150, 243, 0.95);
+}
+
+/* ========== Image Detail ========== */
+.image-stats {
+    display: flex;
+    gap: 24px;
+    font-size: 16px;
+    margin-bottom: 16px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.text-pass {
+    color: #4CAF50;
+}
+
+.text-fail {
+    color: #f44336;
+}
+
+.my-status {
+    padding: 12px;
+    background-color: rgba(37, 37, 37, 0.8);
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.my-status.pass {
+    color: #4CAF50;
+}
+
+.my-status.fail {
+    color: #f44336;
+}
+
+.my-status.skip {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+/* ========== Scrollbar - Hidden ========== */
+::-webkit-scrollbar {
+    display: none;
+}
+
+/* ========== Disabled State ========== */
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ========== Mobile Bottom Navigation ========== */
+.mobile-bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(13, 13, 13, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 4px;
+    padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    z-index: 1000;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.mobile-bottom-nav .nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+    min-width: 60px;
+}
+
+.mobile-bottom-nav .nav-btn:active {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.mobile-bottom-nav .nav-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+.mobile-bottom-nav .nav-btn span {
+    font-size: 11px;
+}
+
+.mobile-bottom-nav .nav-pass {
+    color: #4ade80;
+}
+
+.mobile-bottom-nav .nav-fail {
+    color: #f87171;
+}
+
+/* ========== Mobile Adaptation (768px and below) ========== */
+
+/*
+ * On mobile, we use bottom navigation controls instead of repositioning
+ * desktop buttons. Desktop buttons are hidden with display: none.
+ */
+@media screen and (max-width: 768px) {
+    /* Use :root for higher specificity than html */
+    :root {
+        /* Bottom nav: base 56px (buttons) + 16px padding + safe-area */
+        --mobile-bottom-nav-height: calc(72px + env(safe-area-inset-bottom));
+        /* Header height: navbar wraps to ~160px, use 160px to accommodate */
+        --mobile-header-height: 160px;
+        /* Fallback viewport height for browsers without 100dvh support */
+        --mobile-viewport-height: 100vh;
+        /* Extra margin from bottom nav to prevent blocking */
+        --mobile-bottom-margin: 30px;
+        /* Centralized content area height calculation (auto-updates when viewport changes) */
+        --mobile-content-height: calc(var(--mobile-viewport-height) - var(--mobile-header-height) - var(--mobile-bottom-nav-height) - var(--mobile-bottom-margin));
+    }
+
+    /* Use 100dvh where supported - only override viewport height, content-height auto-updates */
+    @supports (height: 100dvh) {
+        :root {
+            --mobile-viewport-height: 100dvh;
+        }
+    }
+
+    /* Hide desktop buttons, show bottom nav */
+    .mobile-bottom-nav {
+        display: flex;
+    }
+
+    #passBtn, #failBtn, #downloadBtn, #prevBtn, #skipBtn {
+        display: none !important;
+    }
+
+    /* Main content area - reserve space for header and bottom nav */
+    .main-content {
+        height: var(--mobile-content-height);
+        padding: 10px;
+        padding-bottom: 0;
+        align-items: center;
+        justify-content: center;
+    }
+
+    /* Image container - fit within safe area above bottom nav */
+    .image-container {
+        max-width: 100%;
+        width: 100%;
+        max-height: var(--mobile-content-height);
+        height: 100%;
+        padding: 10px;
+        flex: none;
+        overflow-y: auto;  /* Vertical scroll only, no horizontal scroll */
+        -webkit-overflow-scrolling: touch;
+        display: flex;
+        align-items: flex-start;  /* Align to top for better UX when scrolling */
+        justify-content: center;
+        box-sizing: border-box;
+        /* Match desktop styles - but remove background for mobile to avoid gray box */
+        background-color: transparent !important;
+        border: none;
+    }
+
+    /* Mobile image - auto scale to fit container */
+    #reviewImage {
+        max-width: 100%;
+        max-height: calc(var(--mobile-content-height) - 20px);
+        width: auto;
+        height: auto;
+        object-fit: contain;
+    }
+
+    /* Navbar adjustment */
+    .navbar {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: 50px;
+        padding: 6px 10px;
+        gap: 6px;
+    }
+
+    .nav-left, .nav-center, .nav-right {
+        flex: none;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .nav-left {
+        justify-content: flex-start;
+    }
+
+    .nav-right {
+        justify-content: flex-end;
+    }
+
+    .user-info {
+        gap: 10px;
+    }
+
+    .nickname {
+        font-size: 14px;
+        padding: 4px 8px;
+    }
+
+    .review-count {
+        font-size: 12px;
+    }
+
+    .progress-container {
+        max-width: 180px;
+    }
+
+    .progress-label {
+        font-size: 11px;
+    }
+
+    .complete-container {
+        font-size: 11px;
+        padding: 3px 8px;
+        margin-left: 8px;
+        margin-top: 4px;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .complete-count {
+        font-size: 14px;
+    }
+
+    .nav-center {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .progress-container {
+        flex: 1 1 200px;
+    }
+
+    .complete-container {
+        flex: 0 0 auto;
+        margin-left: 0;
+    }
+
+    .btn-rule {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    /* Modal */
+    .modal-content {
+        width: 95%;
+        margin: 30px auto;
+        max-height: 85vh;
+    }
+
+    .modal-content.modal-large {
+        max-width: 95%;
+    }
+
+    .modal-body {
+        padding: 15px;
+    }
+
+    /* Image stats */
+    .image-stats {
+        flex-wrap: wrap;
+        gap: 12px;
+        font-size: 14px;
+    }
+
+    /* Role list */
+    .role-list {
+        max-height: 300px;
+    }
+
+    .role-item {
+        padding: 10px;
+    }
+
+    .role-avatar {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* ========== Phone Portrait (480px and below) ========== */
+@media screen and (max-width: 480px) {
+    /* Navbar further simplified */
+    .navbar {
+        padding: 5px 8px;
+    }
+
+    .progress-detail {
+        font-size: 11px;
+    }
+
+    .role-progress {
+        display: none;
+    }
+
+    /* Main content area - smaller padding */
+    .main-content {
+        padding: 8px;
+    }
+
+    /* Image container - smaller padding */
+    .image-container {
+        padding: 8px;
+    }
+
+    /* Button - larger touch area (for .btn-role-select which is still visible) */
+    .btn {
+        padding: 14px 20px;
+        min-height: 50px;
+        touch-action: manipulation;
+    }
+
+    .btn-role-select {
+        right: 10px;
+        bottom: 140px;
+        padding: 8px 16px;
+        font-size: 12px;
+    }
+
+    /* Modal */
+    .modal-content {
+        width: 98%;
+        margin: 20px auto;
+    }
+
+    .modal-header h3 {
+        font-size: 16px;
+    }
+
+    .close {
+        font-size: 20px;
+    }
+
+    /* Image detail */
+    .image-stats {
+        font-size: 13px;
+        gap: 8px;
+    }
+
+    .my-status {
+        font-size: 13px;
+    }
+}
+
+/* ========== Phone Landscape ========== */
+@media screen and (max-height: 500px) and (orientation: landscape) {
+    /* Navbar compressed - only override header height, content-height auto-updates */
+    :root {
+        --mobile-header-height: 60px;  /* Compressed header for landscape (50px + padding) */
+        --mobile-bottom-nav-height: calc(72px + env(safe-area-inset-bottom));  /* Same as portrait */
+        --mobile-bottom-margin: 20px;  /* Extra margin from bottom nav */
+    }
+
+    .navbar {
+        height: 50px;
+        padding: 5px 12px;
+    }
+
+    .nav-left, .nav-right {
+        flex: 0;
+    }
+
+    .nav-center {
+        flex: 1;
+    }
+
+    /* Main content area - use shared content height variable */
+    .main-content {
+        height: var(--mobile-content-height);
+    }
+
+    /* Larger image display - fit above bottom nav */
+    .image-container {
+        max-height: calc(var(--mobile-content-height) - 30px);
+    }
+
+    #reviewImage {
+        max-height: calc(var(--mobile-content-height) - 40px);
+    }
+
+    /* Button size reduced */
+    .btn {
+        padding: 8px 16px;
+        font-size: 14px;
+    }
+
+    .btn-download, .btn-role-select {
+        display: none;
+    }
+}
+
+/* ========== Touch Device Optimization ========== */
+@media (hover: none) and (pointer: coarse) {
+    .btn:hover {
+        /* Remove hover effect for better performance */
+    }
+
+    .btn:active {
+        transform: scale(0.95);
+    }
+
+    .nickname:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .role-item:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+}
